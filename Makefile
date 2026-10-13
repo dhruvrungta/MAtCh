@@ -84,7 +84,8 @@ test-mock: check-names gen
 	@python3 tools/mock_portal.py --host $(MOCK_HOST) --port $(MOCK_PORT) --quiet & \
 	MOCK_PID=$$!; trap "kill $$MOCK_PID 2>/dev/null" EXIT; sleep 1; \
 	set -o pipefail; TEST_RUNNER_MATCH_MOCK_BASE=$(MOCK_BASE) $(TEST_XCODEBUILD) -configuration Debug test \
-		-only-testing:MatchTests/MockPortalTests 2>&1 | $(TEST_FILTER)
+		-only-testing:MatchTests/MockPortalTests \
+		-only-testing:MatchTests/WiFiHTTPClientMockTests 2>&1 | $(TEST_FILTER)
 
 # Renders every screen to a PNG in build/snapshots, for looking at layouts.
 snapshots: gen

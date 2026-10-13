@@ -25,7 +25,12 @@ final class AppEnvironment {
         // A debug build pointed at the mock portal keeps its own sign-in and settings,
         // so real credentials never reach a mock and test ones never reach the real portal.
         let usingMockPortal = endpoints != .production
-        let http = URLSessionHTTPClient()
+        // Requests go over the Wi-Fi interface itself, so that a Mac also plugged into
+        // Ethernet still meets the Wi-Fi's login page. The mock portal is on this
+        // machine, not on Wi-Fi, so it is reached the ordinary way.
+        let http: any HTTPClient = usingMockPortal
+            ? URLSessionHTTPClient()
+            : WiFiFirstHTTPClient(wifi: WiFiHTTPClient(), fallback: URLSessionHTTPClient())
         let mockDefaults = usingMockPortal ? UserDefaults(suiteName: "\(AppIdentity.bundleID).mock") : nil
         let settings = SettingsStore(defaults: mockDefaults ?? .standard)
         // The sign-in lives in the vault. Versions from before the vault kept it in an
