@@ -46,10 +46,10 @@ gen:
 build: gen
 	$(XCODEBUILD) -configuration Debug -quiet build
 
-# Fails if the reference project's name appears anywhere outside SPEC.md and README.md,
+# Fails if the reference project's name appears anywhere outside README.md,
 # or in any commit message. The pattern is written with a bracket so this file passes.
 check-names:
-	@if grep -rniI 'l[a]tch' --exclude=SPEC.md --exclude=README.md --exclude-dir=.git --exclude-dir=build --exclude-dir=DerivedData . ; then \
+	@if grep -rniI 'l[a]tch' --exclude=README.md --exclude-dir=.git --exclude-dir=build --exclude-dir=DerivedData . ; then \
 		echo "check-names: forbidden name found in the files above"; exit 1; \
 	fi
 	@if git rev-parse --git-dir >/dev/null 2>&1 && git log --format=%B 2>/dev/null | grep -iq 'l[a]tch'; then \
