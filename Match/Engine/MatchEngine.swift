@@ -86,6 +86,9 @@ actor MatchEngine {
 
     private var recoveryTask: Task<Void, Never>?
     private var recoveryID = 0
+    /// What asked for the most recent check, so that a check the network never
+    /// answered can be finished on the same terms.
+    private var lastTrigger: Trigger = .automatic
 
     init(
         detector: PortalDetector,
@@ -274,6 +277,7 @@ actor MatchEngine {
         if let settle = request.settle {
             guard await interruptibleSleep(settle, id: id) else { return }
         }
+        lastTrigger = request.trigger
         await checkAndAct(request.trigger, id: id)
         finishRun(id)
     }
@@ -452,6 +456,7 @@ actor MatchEngine {
         guard isCurrent(id) else { return }
 
         // The manual sign-out flag is set, so this settles without signing back in.
+        lastTrigger = .automatic
         await checkAndAct(.automatic, id: id)
         finishRun(id)
     }
@@ -475,17 +480,25 @@ actor MatchEngine {
 
     // MARK: Recovery watch
 
-    /// A failure is not the last word: the internet may come up a little later, for
-    /// instance when the portal is slow to open up after a sign-in. While failed,
-    /// keep looking with probes that carry no credentials. Seeing the internet work
-    /// updates the status; seeing anything else changes nothing, and in particular
-    /// never signs in.
+    /// A failure is not the last word. While failed, keep looking with probes that
+    /// carry no credentials.
+    ///
+    /// If the check failed because the network never answered (a probe error, or a
+    /// name that would not resolve), no sign-in was ever attempted, so the first real
+    /// answer finishes that check on its original terms. After any other failure a
+    /// sign-in was attempted, so the watch only notices the internet working; it
+    /// never signs in again by itself.
     private func startRecoveryWatch() {
         stopRecoveryWatch()
         let id = recoveryID
         let detector = detector
         let clock = clock
         let timing = timing
+        let checkWasNeverAnswered: Bool
+        switch state {
+        case .failed(.network), .failed(.dnsFailure): checkWasNeverAnswered = true
+        default: checkWasNeverAnswered = false
+        }
         recoveryTask = Task {
             var delay = timing.firstRecoveryCheck
             while true {
@@ -497,12 +510,27 @@ actor MatchEngine {
                 delay = timing.recoveryCheckInterval
                 let result = await detector.probe(overallTimeout: timing.probeTimeout)
                 if Task.isCancelled { return }
-                if result == .online {
+                switch result {
+                case .online where !checkWasNeverAnswered:
                     await self.recoveredWhileFailed(id: id)
                     return
+                case .online, .vitPortal, .otherPortal:
+                    if checkWasNeverAnswered {
+                        self.finishUnansweredCheck(id: id)
+                        return
+                    }
+                case .dnsFailure, .error:
+                    break
                 }
             }
         }
+    }
+
+    private func finishUnansweredCheck(id: Int) {
+        guard id == recoveryID, runTask == nil, network != nil, case .failed = state else { return }
+        recoveryTask = nil
+        Log.engine.debug("the network answers now: finishing the check")
+        requestRun(lastTrigger)
     }
 
     private func stopRecoveryWatch() {

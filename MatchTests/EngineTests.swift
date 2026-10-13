@@ -851,6 +851,94 @@ private final class Harness: Sendable {
         await harness.shutdown()
     }
 
+    @Test func aCheckTheNetworkNeverAnsweredIsFinishedWhenItDoes() async {
+        let harness = await Harness()
+        // Joining the network: nothing answers at first, as when macOS is still
+        // sorting out a captive network.
+        harness.portal.setMode(.unreachable)
+        await harness.wifiUp()
+        for delay in [2, 4, 8] {
+            #expect(await harness.clock.waitForSleep(of: .seconds(delay)))
+            harness.clock.advance(by: .seconds(delay))
+        }
+        #expect(await harness.reaches(.failed(.network("unreachable"))))
+        #expect(harness.portal.postCount == 0)
+
+        // Still nothing ten seconds later; then the portal answers.
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+        #expect(await harness.clock.waitForSleep(of: Harness.recoveryInterval))
+        #expect(await harness.engine.state == .failed(.network("unreachable")))
+
+        harness.portal.setMode(.captive)
+        harness.clock.advance(by: Harness.recoveryInterval)
+        #expect(await harness.reachesConnected())
+        #expect(harness.portal.postCount == 1)
+        await harness.shutdown()
+    }
+
+    @Test func anUnresolvedNameIsFinishedTheSameWay() async {
+        let harness = await Harness()
+        harness.portal.setMode(.dnsFailure)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.failed(.dnsFailure)))
+
+        harness.portal.setMode(.captive)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+        #expect(await harness.reachesConnected())
+        #expect(harness.portal.postCount == 1)
+        await harness.shutdown()
+    }
+
+    @Test func finishingAnUnansweredCheckKeepsEveryGate() async {
+        // Auto-login is off: the finished check must stop at the portal, not sign in.
+        let harness = await Harness(autoLogin: false)
+        harness.portal.setMode(.dnsFailure)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.failed(.dnsFailure)))
+
+        harness.portal.setMode(.captive)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+        #expect(await harness.reaches(.portalDetected))
+        #expect(harness.portal.postCount == 0)
+
+        // And a foreign portal still gets nothing.
+        await harness.engine.handle(.wifiDown)
+        harness.portal.setMode(.dnsFailure)
+        await harness.wifiUp(gateway: "192.168.5.1")
+        #expect(await harness.reaches(.failed(.dnsFailure)))
+        harness.portal.setMode(.foreignPortal)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+        #expect(await harness.reaches(.notCampus))
+        #expect(harness.portal.postCount == 0)
+        await harness.shutdown()
+    }
+
+    @Test func aConnectTheNetworkNeverAnsweredIsFinishedAsAConnect() async {
+        // The user clicked Connect with auto-login off, and the network was silent.
+        let harness = await Harness(autoLogin: false)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.portalDetected))
+
+        harness.portal.setMode(.unreachable)
+        await harness.engine.connectNow()
+        for delay in [2, 4, 8] {
+            #expect(await harness.clock.waitForSleep(of: .seconds(delay)))
+            harness.clock.advance(by: .seconds(delay))
+        }
+        #expect(await harness.reaches(.failed(.network("unreachable"))))
+
+        harness.portal.setMode(.captive)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+        #expect(await harness.reachesConnected())
+        #expect(harness.portal.postCount == 1)
+        await harness.shutdown()
+    }
+
     @Test func theWatchStopsWhenAnythingElseTakesOver() async {
         let harness = await Harness()
         harness.portal.setMode(.dnsFailure)

@@ -59,7 +59,10 @@ struct UserNotifier: Notifying {
 
     func notify(_ event: NotificationEvent) async {
         let content = NotificationContent(event)
-        guard settings.isNotificationEnabled(content.category) else { return }
+        guard settings.isNotificationEnabled(content.category) else {
+            Log.ui.debug("notification not posted, switched off: \(content.category.rawValue, privacy: .public)")
+            return
+        }
         await Self.post(content)
     }
 
@@ -67,7 +70,10 @@ struct UserNotifier: Notifying {
     private static func post(_ content: NotificationContent) async {
         let center = UNUserNotificationCenter.current()
         let status = await center.notificationSettings().authorizationStatus
-        guard status == .authorized || status == .provisional else { return }
+        guard status == .authorized || status == .provisional else {
+            Log.ui.debug("notification not posted, macOS permission is \(status.rawValue): \(content.category.rawValue, privacy: .public)")
+            return
+        }
 
         let notification = UNMutableNotificationContent()
         notification.title = content.title
@@ -77,6 +83,7 @@ struct UserNotifier: Notifying {
         let request = UNNotificationRequest(identifier: content.category.rawValue, content: notification, trigger: nil)
         do {
             try await center.add(request)
+            Log.ui.debug("notification posted: \(content.category.rawValue, privacy: .public)")
         } catch {
             Log.ui.error("could not post a notification: \(error.localizedDescription, privacy: .public)")
         }
