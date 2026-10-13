@@ -10,6 +10,10 @@ settings:
   base:
     # The bundle identifier lives here and nowhere else in the build configuration.
     MATCH_BUNDLE_ID: com.dhruvrungta.match
+    # The GitHub repository that publishes releases. The app builds its update-check
+    # address and its install command from these two names.
+    MATCH_GITHUB_OWNER: dhruvrungta
+    MATCH_GITHUB_REPOSITORY: match
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.0"

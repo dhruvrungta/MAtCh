@@ -58,6 +58,19 @@ private struct GeneralSettings: View {
                 }
             }
 
+            if appState.canCheckForUpdates {
+                Section {
+                    Toggle("Check for updates once a day", isOn: Binding(
+                        get: { appState.updateChecksEnabled },
+                        set: { appState.setUpdateChecksEnabled($0) }
+                    ))
+                    Text("Match only reads the latest version number. It sends nothing about you, and never downloads or installs anything by itself.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             Section("Notify me when") {
                 ForEach(NotificationCategory.allCases, id: \.self) { category in
                     Toggle(category.label, isOn: Binding(

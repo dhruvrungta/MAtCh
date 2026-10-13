@@ -35,7 +35,10 @@ TEST_XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 # Keeps compiler diagnostics and test results; drops the rest of xcodebuild's output.
 TEST_FILTER := grep -aE '^/.*: (error|warning):|✘ |✔ Suite|✔ Test run|Testing failed|\*\* TEST'
 
-.PHONY: gen build check-names test run install mock run-mock test-mock snapshots check-release clean
+# The version "make zip" builds; a real release takes it from its tag.
+VERSION ?= $(shell sed -n 's/^ *MARKETING_VERSION: *"\(.*\)"/\1/p' project.yml)
+
+.PHONY: gen build check-names test run install mock run-mock test-mock test-install lint snapshots check-release zip clean
 
 gen:
 	xcodegen generate --quiet
@@ -97,6 +100,19 @@ check-release: gen
 		echo "check-release: the Release binary contains the debug portal override"; exit 1; \
 	fi
 	@echo "check-release: ok"
+
+# Runs install.sh against a made-up release, a made-up app and a temporary home folder.
+test-install:
+	tools/test_install.sh
+
+# Needs ShellCheck (brew install shellcheck).
+lint:
+	shellcheck install.sh tools/*.sh
+
+# Builds the signed universal app, zips it, and writes its SHA-256 and latest.json
+# into build/release, exactly as the release workflow does.
+zip:
+	tools/build_release.sh $(VERSION)
 
 clean:
 	rm -rf build

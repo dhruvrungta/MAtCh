@@ -43,10 +43,13 @@ final class SettingsStore: EngineSettings, KeychainApprovalRecord, @unchecked Se
         static let campusNetworkNames = "campusNetworkNames"
         static let showNetworkName = "showNetworkName"
         static let keychainApprovedBuild = "keychainApprovedBuild"
+        static let updateChecks = "updateChecksEnabled"
+        static let lastUpdateCheck = "lastUpdateCheck"
         static func notification(_ category: NotificationCategory) -> String { "notify.\(category.rawValue)" }
 
         static var all: [String] {
-            [autoLogin, campusGateways, campusNetworkNames, showNetworkName, keychainApprovedBuild]
+            [autoLogin, campusGateways, campusNetworkNames, showNetworkName, keychainApprovedBuild,
+             updateChecks, lastUpdateCheck]
                 + NotificationCategory.allCases.map(notification)
         }
     }
@@ -60,6 +63,7 @@ final class SettingsStore: EngineSettings, KeychainApprovalRecord, @unchecked Se
             Key.autoLogin: true,
             Key.campusNetworkNames: Self.defaultCampusNetworkNames,
             Key.showNetworkName: false,
+            Key.updateChecks: true,
         ]
         for category in NotificationCategory.allCases {
             registered[Key.notification(category)] = true
@@ -127,6 +131,20 @@ final class SettingsStore: EngineSettings, KeychainApprovalRecord, @unchecked Se
         } else {
             defaults.removeObject(forKey: Key.keychainApprovedBuild)
         }
+    }
+
+    // MARK: Updates
+
+    var updateChecksEnabled: Bool { defaults.bool(forKey: Key.updateChecks) }
+
+    func setUpdateChecksEnabled(_ enabled: Bool) {
+        defaults.set(enabled, forKey: Key.updateChecks)
+    }
+
+    var lastUpdateCheck: Date? { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
+
+    func setLastUpdateCheck(_ date: Date) {
+        defaults.set(date, forKey: Key.lastUpdateCheck)
     }
 
     /// Puts every setting back to its default.

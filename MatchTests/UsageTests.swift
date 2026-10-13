@@ -413,6 +413,9 @@ import Testing
         #expect(StatusCopy.speed(0).hasSuffix("/s"))
         #expect(StatusCopy.speed(-5) == StatusCopy.speed(0))
         #expect(StatusCopy.speed(1_500_000) != StatusCopy.speed(0))
+        // Numbers, not words: "0 kB/s" rather than "Zero kB/s".
+        #expect(StatusCopy.speed(0).first?.isNumber == true)
+        #expect(StatusCopy.bytes(0).first?.isNumber == true)
     }
 
     @Test func aRecordSummaryMatchesThePortalSessionSummary() {

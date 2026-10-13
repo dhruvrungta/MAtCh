@@ -35,6 +35,11 @@ final class AppEnvironment {
             sessions: sessions
         )
         let networkNames = WiFiInfo()
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        // The update check uses its own client, and never the mock portal's address.
+        let updateChecker = ReleaseSource.bundled.map {
+            UpdateChecker(http: URLSessionHTTPClient(), source: $0, currentVersion: version)
+        }
 
         engine = MatchEngine(
             detector: PortalDetector(http: http, endpoints: endpoints),
@@ -52,8 +57,17 @@ final class AppEnvironment {
             sessions: sessions,
             usage: usage,
             networkNames: networkNames,
+            updateChecker: updateChecker,
             usingMockPortal: usingMockPortal
         )
+
+        // The uninstaller runs the app with this argument so that it can remove what
+        // only it is allowed to remove, and then exits before anything else starts.
+        if ProcessInfo.processInfo.arguments.contains(Self.uninstallArgument) {
+            Self.cleanUpForUninstall(credentials: credentials, settings: settings, sessions: sessions)
+            exit(0)
+        }
+
         appState.showOnboarding = { [weak self] in
             guard let self else { return }
             onboarding.show(appState: appState)
@@ -81,6 +95,9 @@ final class AppEnvironment {
                 }
             })
         }
+        if !appState.usingMockPortal {
+            appState.startUpdateSchedule()
+        }
         if appState.savedUserId == nil {
             // Wait for the app to finish launching before putting a window on screen.
             Task { [appState] in
@@ -88,6 +105,26 @@ final class AppEnvironment {
                 appState.showOnboarding()
             }
         }
+    }
+
+    static let uninstallArgument = "--uninstall-cleanup"
+
+    private static func cleanUpForUninstall(
+        credentials: any CredentialStore, settings: SettingsStore, sessions: SessionStore
+    ) {
+        do {
+            try credentials.clear()
+            print("Removed the saved sign-in from the Keychain.")
+        } catch {
+            print("Could not remove the saved sign-in from the Keychain: \((error as? KeychainError)?.message ?? "\(error)")")
+        }
+        if LoginItem.isEnabled {
+            try? LoginItem.setEnabled(false)
+            print("Turned off launch at login.")
+        }
+        sessions.clear()
+        settings.resetAll()
+        print("Removed settings and history.")
     }
 
     static var isHostingTests: Bool {

@@ -14,8 +14,11 @@ jobs:
           # Full history, so check-names can read every commit message.
           fetch-depth: 0
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      - name: Install XcodeGen and ShellCheck
+        run: brew install xcodegen shellcheck
+
+      - name: Lint the shell scripts
+        run: make lint
 
       - name: Check names
         run: make check-names
@@ -31,3 +34,6 @@ jobs:
 
       - name: Check Release build
         run: make check-release
+
+      - name: Test the installer
+        run: make test-install

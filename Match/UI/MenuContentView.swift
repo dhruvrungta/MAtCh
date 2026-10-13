@@ -12,6 +12,10 @@ struct MenuContentView: View {
                 unlockReminder
             }
 
+            if let update = appState.availableUpdate {
+                updateNotice(update)
+            }
+
             if let action = appState.primaryAction {
                 Button(action.title) { run(action) }
                     .buttonStyle(.borderedProminent)
@@ -32,6 +36,21 @@ struct MenuContentView: View {
             }
 
             Divider()
+
+            if appState.canCheckForUpdates {
+                HStack {
+                    Button("Check for Updates…") {
+                        Task { await appState.checkForUpdates(askedByUser: true) }
+                    }
+                    .buttonStyle(.link)
+                    .disabled(appState.isCheckingForUpdates)
+                    if let message = appState.updateCheckMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
 
             HStack {
                 Button("Settings…") { showSettings(.general) }
@@ -103,6 +122,33 @@ struct MenuContentView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Unlock") { appState.unlockSavedSignIn() }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func updateNotice(_ update: ReleaseInfo) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Match \(update.version) is available")
+                .font(.subheadline.weight(.semibold))
+            if let notes = update.notes, !notes.isEmpty {
+                Text(notes)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("To update, copy the command and paste it into Terminal.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button("Copy command") { appState.copyUpdateCommand() }
+                if appState.releasePage != nil {
+                    Button("View release") { appState.openReleasePage() }
+                }
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)

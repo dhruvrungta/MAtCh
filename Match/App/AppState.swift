@@ -41,6 +41,12 @@ final class AppState {
     private(set) var networkName: String?
     private(set) var campusNetworkNames: [String]
     private(set) var rememberedGatewayCount = 0
+    private(set) var updateChecksEnabled: Bool
+    /// A newer version that has been published, if a check found one.
+    private(set) var availableUpdate: ReleaseInfo?
+    /// What the last check the user asked for found, in words.
+    private(set) var updateCheckMessage: String?
+    private(set) var isCheckingForUpdates = false
     var selectedSettingsTab: SettingsTab = .general
 
     let sessions: SessionStore
@@ -57,7 +63,9 @@ final class AppState {
     @ObservationIgnored private let credentials: any CredentialStore
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let networkNames: any NetworkNaming
+    @ObservationIgnored private let updateChecker: UpdateChecker?
     @ObservationIgnored private var observation: Task<Void, Never>?
+    @ObservationIgnored private var updateSchedule: Task<Void, Never>?
 
     init(
         engine: MatchEngine,
@@ -66,6 +74,7 @@ final class AppState {
         sessions: SessionStore,
         usage: UsageMonitor,
         networkNames: any NetworkNaming,
+        updateChecker: UpdateChecker? = nil,
         usingMockPortal: Bool
     ) {
         self.engine = engine
@@ -74,6 +83,8 @@ final class AppState {
         self.sessions = sessions
         self.usage = usage
         self.networkNames = networkNames
+        self.updateChecker = updateChecker
+        self.updateChecksEnabled = settings.updateChecksEnabled
         self.usingMockPortal = usingMockPortal
         self.autoLoginEnabled = settings.autoLoginEnabled
         self.showNetworkName = settings.showNetworkName
@@ -96,6 +107,7 @@ final class AppState {
 
     private func reloadSettings() {
         autoLoginEnabled = settings.autoLoginEnabled
+        updateChecksEnabled = settings.updateChecksEnabled
         showNetworkName = settings.showNetworkName
         campusNetworkNames = settings.campusNetworkNames
         rememberedGatewayCount = settings.knownCampusGateways.count
@@ -103,6 +115,69 @@ final class AppState {
         for category in NotificationCategory.allCases {
             notifications[category] = settings.isNotificationEnabled(category)
         }
+    }
+
+    // MARK: Updates
+
+    var canCheckForUpdates: Bool { updateChecker != nil }
+
+    /// The line to paste into Terminal to update.
+    var updateCommand: String? { updateChecker?.source.installCommand }
+
+    var releasePage: URL? {
+        guard let availableUpdate else { return nil }
+        return updateChecker?.source.releasePage(for: availableUpdate)
+    }
+
+    func setUpdateChecksEnabled(_ enabled: Bool) {
+        settings.setUpdateChecksEnabled(enabled)
+        updateChecksEnabled = enabled
+    }
+
+    /// Looks for a newer version once a day while automatic checks are switched on.
+    func startUpdateSchedule() {
+        updateSchedule = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.checkForUpdatesIfDue()
+                try? await Task.sleep(for: .seconds(3600))
+            }
+        }
+    }
+
+    func checkForUpdatesIfDue(now: Date = Date()) async {
+        guard updateChecksEnabled, UpdateChecker.isDue(lastCheck: settings.lastUpdateCheck, now: now) else { return }
+        await checkForUpdates(askedByUser: false, now: now)
+    }
+
+    func checkForUpdates(askedByUser: Bool, now: Date = Date()) async {
+        guard let updateChecker, !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        defer { isCheckingForUpdates = false }
+
+        let outcome = await updateChecker.check()
+        settings.setLastUpdateCheck(now)
+        switch outcome {
+        case .available(let release):
+            availableUpdate = release
+            updateCheckMessage = nil
+        case .upToDate:
+            availableUpdate = nil
+            updateCheckMessage = askedByUser ? "Match is up to date." : nil
+        case .failed(let reason):
+            Log.ui.debug("update check failed: \(reason)")
+            updateCheckMessage = askedByUser ? "Couldn't check for updates. Try again later." : nil
+        }
+    }
+
+    func copyUpdateCommand() {
+        guard let updateCommand else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(updateCommand, forType: .string)
+    }
+
+    func openReleasePage() {
+        guard let releasePage else { return }
+        NSWorkspace.shared.open(releasePage)
     }
 
     // MARK: Connection

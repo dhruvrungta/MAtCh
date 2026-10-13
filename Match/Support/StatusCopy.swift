@@ -94,7 +94,7 @@ enum StatusCopy {
     }
 
     static func bytes(_ count: Int64) -> String {
-        count.formatted(.byteCount(style: .binary))
+        count.formatted(.byteCount(style: .binary, spellsOutZero: false))
     }
 
     /// A speed in bytes per second, as "1.2 MB/s".

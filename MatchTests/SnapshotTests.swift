@@ -13,7 +13,8 @@ struct SnapshotTests {
     private func makeAppState(
         credentials: Credentials? = Credentials(userId: "25BIT0088", password: "pw"),
         needsApproval: Bool = false,
-        networkName: String? = "T-VIT"
+        networkName: String? = "T-VIT",
+        updateFeed: String? = nil
     ) throws -> AppState {
         let suite = "\(AppIdentity.bundleID).tests.\(UUID().uuidString)"
         let settings = SettingsStore(defaults: try #require(UserDefaults(suiteName: suite)))
@@ -46,6 +47,13 @@ struct SnapshotTests {
             sessions: sessions,
             usage: usage,
             networkNames: FixedNetworkName(name: networkName),
+            updateChecker: updateFeed.map {
+                UpdateChecker(
+                    http: ScriptedHTTPClient([.success(.html(200, $0))]),
+                    source: ReleaseSource(owner: "dhruvrungta", repository: "match"),
+                    currentVersion: "1.0.0"
+                )
+            },
             usingMockPortal: false
         )
         appState.refreshKeychainStatus()
@@ -72,7 +80,7 @@ struct SnapshotTests {
         #expect(hosting.bounds.height > 80)
     }
 
-    @Test func menu() throws {
+    @Test func menu() async throws {
         let appState = try makeAppState()
         let since = Date().addingTimeInterval(-4320)
         appState.engineState = .connected(since: since)
@@ -83,6 +91,14 @@ struct SnapshotTests {
 
         appState.engineState = .failed(.sessionLimit)
         try snapshot(MenuContentView(appState: appState), "menu-failed")
+
+        let updatable = try makeAppState(updateFeed: """
+            {"version": "1.2.0", "url": "https://github.com/dhruvrungta/match/releases/download/v1.2.0/Match-1.2.0.zip",
+             "sha256": "0f3a", "notes": "Signs in faster after waking from sleep."}
+            """)
+        updatable.engineState = .connected(since: Date().addingTimeInterval(-600))
+        await updatable.checkForUpdates(askedByUser: true)
+        try snapshot(MenuContentView(appState: updatable), "menu-update-available")
 
         appState.engineState = .portalDetected
         try snapshot(MenuContentView(appState: appState), "menu-portal")
