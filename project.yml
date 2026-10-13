@@ -1,0 +1,70 @@
+name: Match
+
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    # The bundle identifier lives here and nowhere else in the build configuration.
+    MATCH_BUNDLE_ID: com.dhruvrungta.match
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    ENABLE_HARDENED_RUNTIME: YES
+    # Every build is signed with the same long-lived self-signed identity so the
+    # Keychain keeps trusting the app across rebuilds. The Makefile overrides this
+    # with ad-hoc signing when the identity is not installed.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Match Self-Signed"
+    DEVELOPMENT_TEAM: ""
+    PROVISIONING_PROFILE_SPECIFIER: ""
+
+targets:
+  Match:
+    type: application
+    platform: macOS
+    sources:
+      - path: Match
+    settings:
+      base:
+        PRODUCT_NAME: Match
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCH_BUNDLE_ID)
+        INFOPLIST_FILE: Match/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Match/Match.entitlements
+        ENABLE_APP_SANDBOX: YES
+
+  MatchTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MatchTests
+    dependencies:
+      - target: Match
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCH_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Match.app/Contents/MacOS/Match
+        BUNDLE_LOADER: $(TEST_HOST)
+
+schemes:
+  Match:
+    build:
+      targets:
+        Match: all
+        MatchTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MatchTests
+    archive:
+      config: Release
