@@ -106,6 +106,7 @@ final class FakePortal: HTTPClient, Sendable {
     private struct State {
         var mode: Mode = .captive
         var login: LoginBehaviour = .accept
+        var campusGateways: Set<String> = []
         var requests: [HTTPRequest] = []
     }
 
@@ -114,6 +115,8 @@ final class FakePortal: HTTPClient, Sendable {
     let loginGate = Gate()
 
     func setMode(_ mode: Mode) { state.withLock { $0.mode = mode } }
+    /// Gateways whose front page sends visitors to the VIT portal, as campus ones do.
+    func setCampusGateways(_ gateways: Set<String>) { state.withLock { $0.campusGateways = gateways } }
     func setLogin(_ login: LoginBehaviour) { state.withLock { $0.login = login } }
 
     var requests: [HTTPRequest] { state.withLock { $0.requests } }
@@ -121,14 +124,23 @@ final class FakePortal: HTTPClient, Sendable {
     var postCount: Int { requests.count { $0.method == .post } }
     var logoutCount: Int { requests.count { $0.url.path == ProntoClient.logoutPath } }
     var loginRequests: [HTTPRequest] { requests.filter { $0.url.path == ProntoClient.loginPath } }
+    /// Requests for a gateway's front page.
+    var gatewayRequests: [HTTPRequest] { requests.filter { $0.url.path.isEmpty || $0.url.path == "/" } }
 
     func send(_ request: HTTPRequest) async throws(HTTPError) -> HTTPResponse {
-        let (mode, login) = state.withLock { state in
+        let (mode, login, campusGateways) = state.withLock { state in
             state.requests.append(request)
-            return (state.mode, state.login)
+            return (state.mode, state.login, state.campusGateways)
         }
 
         switch request.url.path {
+        case "", "/":
+            // A gateway's front page.
+            if let host = request.url.host, campusGateways.contains(host) {
+                return .redirect(to: "http://portal.test/redirect.html?URI=http://\(host)/")
+            }
+            return .html(200, "<html>Router settings</html>")
+
         case "/generate_204":
             switch mode {
             case .online: return HTTPResponse(status: 204)

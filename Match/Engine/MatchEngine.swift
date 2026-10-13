@@ -14,6 +14,7 @@ actor MatchEngine {
         /// Probes made after a successful sign-in, waiting for the internet to open up.
         var revalidationAttempts = 3
         var revalidationDelay: Duration = .seconds(2)
+        var gatewayCheckTimeout: Duration = .seconds(2)
     }
 
     /// What asked for a check. Ordered so that merging two requests keeps the stronger.
@@ -63,6 +64,9 @@ actor MatchEngine {
     /// automatic check may send them again.
     private var credentialsRejected = false
     private var signedInOnThisNetwork = false
+    /// The gateway already asked whether it leads to the VIT portal, so that each
+    /// network is asked at most once.
+    private var gatewayCheckedForCampus: String?
 
     private var runTask: Task<Void, Never>?
     private var runID = 0
@@ -142,6 +146,7 @@ actor MatchEngine {
             } else {
                 suppressAutoLoginUntilNextNetworkChange = false
                 signedInOnThisNetwork = false
+                gatewayCheckedForCampus = nil
                 set(.checking)
             }
             requestRun(.automatic, settle: timing.settleDelay)
@@ -152,6 +157,7 @@ actor MatchEngine {
             network = nil
             suppressAutoLoginUntilNextNetworkChange = false
             signedInOnThisNetwork = false
+            gatewayCheckedForCampus = nil
             set(.noWiFi)
 
         case .didWake:
@@ -309,6 +315,10 @@ actor MatchEngine {
 
         switch result {
         case .online:
+            if !isKnownCampusNetwork {
+                await learnCampusFromGateway()
+                guard isCurrent(id) else { return }
+            }
             if suppressAutoLoginUntilNextNetworkChange {
                 set(.online(campus: isKnownCampusNetwork))
             } else if isKnownCampusNetwork {
@@ -413,6 +423,17 @@ actor MatchEngine {
         // The manual sign-out flag is set, so this settles without signing back in.
         await checkAndAct(.automatic, id: id)
         finishRun(id)
+    }
+
+    /// Already online on a network we have not seen the portal on: ask the gateway,
+    /// once, whether this is the campus network. No credentials are involved.
+    private func learnCampusFromGateway() async {
+        guard let gateway = network?.gateway, gatewayCheckedForCampus != gateway else { return }
+        gatewayCheckedForCampus = gateway
+        if await detector.gatewayLeadsToVITPortal(gateway, overallTimeout: timing.gatewayCheckTimeout) {
+            Log.engine.debug("the gateway leads to the VIT portal: campus network")
+            settings.rememberCampusGateway(gateway)
+        }
     }
 
     private var isKnownCampusNetwork: Bool {

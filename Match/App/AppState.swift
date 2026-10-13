@@ -147,7 +147,7 @@ final class AppState {
         case .online(let campus):
             campus
                 ? "You signed out, but the internet still works. Click Connect any time."
-                : "The internet works. This doesn't look like VIT Wi-Fi."
+                : "The internet works. Match signs in only on VIT Wi-Fi."
         case .notCampus: "This network has its own login page. Match leaves it alone."
         case .portalDetected: "Click Connect to sign in."
         case .connected(let since): "Since \(since.formatted(date: .omitted, time: .shortened))"

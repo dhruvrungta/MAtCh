@@ -78,6 +78,14 @@ private final class Harness: Sendable {
         #expect(await clock.waitForSleep(of: Self.healthInterval))
     }
 
+    /// Arrives on a campus network that is already online, and waits for the health check.
+    func connectWithoutSigningIn() async {
+        await wifiUp()
+        #expect(await reachesConnected())
+        #expect(await clock.waitForSleep(of: Self.healthInterval))
+        #expect(portal.postCount == 0)
+    }
+
     func shutdown() async {
         await engine.shutdown()
     }
@@ -556,5 +564,104 @@ private final class Harness: Sendable {
         #expect(await harness.reachesConnected())
         #expect(harness.portal.probeCount == 1)
         await harness.shutdown()
+    }
+}
+
+@Suite struct CampusRecognitionTests {
+    @Test func alreadyOnlineOnCampusIsRecognisedThroughTheGateway() async throws {
+        let harness = await Harness()
+        harness.portal.setMode(.online)
+        harness.portal.setCampusGateways(["10.0.0.1"])
+
+        await harness.wifiUp(gateway: "10.0.0.1")
+        #expect(await harness.reachesConnected())
+        #expect(await harness.clock.waitForSleep(of: Harness.healthInterval))
+
+        // Recognised by asking the gateway for its front page: no credentials, no notification.
+        let check = try #require(harness.portal.gatewayRequests.first)
+        #expect(harness.portal.gatewayRequests.count == 1)
+        #expect(check.method == .get)
+        #expect(check.url.absoluteString == "http://10.0.0.1")
+        #expect(check.body == nil)
+        #expect(harness.portal.postCount == 0)
+        #expect(harness.settings.knownCampusGateways == ["10.0.0.1"])
+        #expect(harness.notifier.events.isEmpty)
+        await harness.shutdown()
+    }
+
+    @Test func anOrdinaryGatewayIsAskedOnlyOncePerNetwork() async {
+        let harness = await Harness()
+        harness.portal.setMode(.online)
+
+        await harness.wifiUp(gateway: "192.168.1.1")
+        #expect(await harness.reaches(.online(campus: false)))
+        #expect(harness.portal.gatewayRequests.count == 1)
+
+        for expected in 2...3 {
+            await harness.engine.handle(.didWake)
+            #expect(await eventually { harness.portal.probeCount == expected })
+            #expect(await harness.reaches(.online(campus: false)))
+        }
+        #expect(harness.portal.gatewayRequests.count == 1)
+
+        // A different network is asked afresh.
+        await harness.engine.handle(.wifiDown)
+        await harness.wifiUp(gateway: "192.168.7.1")
+        #expect(await harness.reaches(.online(campus: false)))
+        #expect(harness.portal.gatewayRequests.count == 2)
+        #expect(harness.settings.knownCampusGateways.isEmpty)
+        #expect(harness.portal.postCount == 0)
+        await harness.shutdown()
+    }
+
+    @Test func aCampusGatewayAloneNeverSendsCredentials() async {
+        let harness = await Harness()
+        harness.portal.setMode(.online)
+        harness.portal.setCampusGateways(["10.0.0.1"])
+        await harness.connectWithoutSigningIn()
+
+        // Later a different portal appears on the same network: still nothing is sent.
+        harness.portal.setMode(.foreignPortal)
+        await harness.engine.connectNow()
+        #expect(await harness.reaches(.notCampus))
+        #expect(harness.portal.postCount == 0)
+        await harness.shutdown()
+    }
+
+    @Test func noGatewayMeansNoCheck() async {
+        let harness = await Harness()
+        harness.portal.setMode(.online)
+        await harness.wifiUp(gateway: nil)
+        #expect(await harness.reaches(.online(campus: false)))
+        #expect(harness.portal.gatewayRequests.isEmpty)
+        await harness.shutdown()
+    }
+}
+
+@Suite struct GatewayCheckTests {
+    private func leadsToPortal(_ result: Result<HTTPResponse, HTTPError>) async -> (Bool, ScriptedHTTPClient) {
+        let http = ScriptedHTTPClient([result])
+        let detector = PortalDetector(http: http, endpoints: .production)
+        return (await detector.gatewayLeadsToVITPortal("172.17.104.1", overallTimeout: .seconds(2)), http)
+    }
+
+    @Test func aRedirectToThePortalMeansCampus() async throws {
+        let location = "http://phc.prontonetworks.com/redirect.html?URI=http://172.17.104.1/"
+        let (campus, http) = await leadsToPortal(.success(.redirect(to: location)))
+        #expect(campus)
+        let request = try #require(http.requests.first)
+        #expect(http.requests.count == 1)
+        #expect(request.method == .get)
+        #expect(request.url.absoluteString == "http://172.17.104.1")
+        #expect(request.headers.isEmpty)
+        #expect(request.body == nil)
+    }
+
+    @Test func anythingElseDoesNot() async {
+        #expect(await leadsToPortal(.success(.html(200, "<html>Router settings</html>"))).0 == false)
+        #expect(await leadsToPortal(.success(.redirect(to: "http://192.168.1.1/login.html"))).0 == false)
+        #expect(await leadsToPortal(.success(HTTPResponse(status: 204))).0 == false)
+        #expect(await leadsToPortal(.failure(.other("connection refused"))).0 == false)
+        #expect(await leadsToPortal(.failure(.timedOut)).0 == false)
     }
 }

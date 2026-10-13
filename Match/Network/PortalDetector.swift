@@ -24,8 +24,23 @@ struct PortalDetector: Sendable {
 
     /// Probes once, giving up after `overallTimeout` whatever the request is doing.
     func probe(overallTimeout: Duration) async -> ProbeResult {
+        await fetch(endpoints.probeURL, label: "probe", overallTimeout: overallTimeout)
+    }
+
+    /// Asks the Wi-Fi gateway for its front page and reports whether it sends visitors
+    /// to the VIT portal, as the hostel gateways do even for a signed-in device.
+    ///
+    /// This carries no credentials and only tells "online on campus" apart from
+    /// "online somewhere else". It never decides whether credentials may be sent.
+    func gatewayLeadsToVITPortal(_ gateway: String, overallTimeout: Duration) async -> Bool {
+        let result = await fetch(endpoints.base(host: gateway), label: "gateway check", overallTimeout: overallTimeout)
+        if case .vitPortal = result { return true }
+        return false
+    }
+
+    private func fetch(_ url: URL, label: String, overallTimeout: Duration) async -> ProbeResult {
         await withTaskGroup(of: ProbeResult.self) { group in
-            group.addTask { await probeOnce() }
+            group.addTask { await fetchOnce(url, label: label) }
             group.addTask {
                 try? await Task.sleep(for: overallTimeout)
                 return .error(HTTPError.timedOut.message)
@@ -36,19 +51,19 @@ struct PortalDetector: Sendable {
         }
     }
 
-    private func probeOnce() async -> ProbeResult {
+    private func fetchOnce(_ url: URL, label: String) async -> ProbeResult {
         let started = ContinuousClock.now
         let result: ProbeResult
         do {
-            let request = HTTPRequest(url: endpoints.probeURL, timeout: Self.requestTimeout)
+            let request = HTTPRequest(url: url, timeout: Self.requestTimeout)
             let response = try await http.send(request)
             result = classify(response)
             Log.network.debug(
-                "probe: HTTP \(response.status) in \((ContinuousClock.now - started).seconds, format: .fixed(precision: 2)) s"
+                "\(label, privacy: .public): HTTP \(response.status) in \((ContinuousClock.now - started).seconds, format: .fixed(precision: 2)) s"
             )
         } catch {
             result = error == .dnsFailure ? .dnsFailure : .error(error.message)
-            Log.network.debug("probe failed: \(error.message, privacy: .public)")
+            Log.network.debug("\(label, privacy: .public) failed: \(error.message, privacy: .public)")
         }
         return result
     }
