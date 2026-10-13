@@ -53,6 +53,28 @@ struct NotificationContent: Equatable, Sendable {
     }
 }
 
+/// Tells macOS to show Match's notifications even while Match is the active app.
+///
+/// Without this, a notification that arrives while the app is frontmost is handed to
+/// the app instead of being shown. Match is frontmost exactly when it matters: just
+/// after the user clicked Connect or Log out in its menu.
+final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate, Sendable {
+    static let shared = NotificationPresenter()
+
+    @MainActor
+    static func install() {
+        UNUserNotificationCenter.current().delegate = shared
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list])
+    }
+}
+
 /// Posts notifications through the system, respecting the per-category settings.
 struct UserNotifier: Notifying {
     let settings: SettingsStore

@@ -55,6 +55,7 @@ final class AppEnvironment {
     }
 
     private func start(sources: [any NetworkEventSource]) {
+        NotificationPresenter.install()
         appState.start()
         for source in sources {
             forwarding.append(Task { [engine] in
