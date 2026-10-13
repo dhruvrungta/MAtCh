@@ -1,0 +1,91 @@
+name: Match
+
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    # The bundle identifier lives here and nowhere else in the build configuration.
+    MATCH_BUNDLE_ID: com.dhruvrungta.match
+    # The GitHub repository that publishes releases. The app builds its update-check
+    # address and its install command from these two names.
+    MATCH_GITHUB_OWNER: dhruvrungta
+    MATCH_GITHUB_REPOSITORY: match
+    MARKETING_VERSION: "0.2.2"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    ENABLE_HARDENED_RUNTIME: YES
+    # Every build is signed with the same long-lived self-signed identity so the
+    # Keychain keeps trusting the app across rebuilds. The Makefile overrides this
+    # with ad-hoc signing when the identity is not installed.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Match Self-Signed"
+    DEVELOPMENT_TEAM: ""
+    PROVISIONING_PROFILE_SPECIFIER: ""
+
+targets:
+  Match:
+    type: application
+    platform: macOS
+    sources:
+      - path: Match
+      # Shared with the vault, so the app and the vault always agree on the protocol.
+      - path: Vault/Sources/VaultProtocol.swift
+      # The vault is built and signed once (tools/build_vault.sh) and copied in as it
+      # is. It must never be rebuilt or re-signed as part of an ordinary build.
+      - path: Vault/MatchVault.xpc
+        type: file
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/XPCServices
+    settings:
+      base:
+        PRODUCT_NAME: Match
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCH_BUNDLE_ID)
+        INFOPLIST_FILE: Match/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Match/Match.entitlements
+        ENABLE_APP_SANDBOX: YES
+      configs:
+        Debug:
+          # Xcode normally puts a Debug build's code in a separate library. The
+          # Hardened Runtime refuses to load that library when the signing
+          # certificate has no team identifier, as the self-signed one doesn't,
+          # so build Debug as a single binary like Release.
+          ENABLE_DEBUG_DYLIB: NO
+
+  MatchTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MatchTests
+    dependencies:
+      - target: Match
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCH_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Match.app/Contents/MacOS/Match
+        BUNDLE_LOADER: $(TEST_HOST)
+
+schemes:
+  Match:
+    build:
+      targets:
+        Match: all
+        MatchTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MatchTests
+    archive:
+      config: Release
