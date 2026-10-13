@@ -14,6 +14,9 @@ struct SettingsView: View {
             NetworkSettings(appState: appState)
                 .tabItem { Label("Network", systemImage: "wifi") }
                 .tag(AppState.SettingsTab.network)
+            HistorySettings(sessions: appState.sessions)
+                .tabItem { Label("History", systemImage: "clock") }
+                .tag(AppState.SettingsTab.history)
             AdvancedSettings(appState: appState)
                 .tabItem { Label("Advanced", systemImage: "wrench.and.screwdriver") }
                 .tag(AppState.SettingsTab.advanced)
@@ -195,6 +198,56 @@ private struct NetworkSettings: View {
     private func addName() {
         appState.setCampusNetworkNames(appState.campusNetworkNames + [newName])
         newName = ""
+    }
+}
+
+private struct HistorySettings: View {
+    let sessions: SessionStore
+    @State private var confirmingClear = false
+
+    /// Enough to scroll through without making the window slow to open.
+    private static let shown = 100
+
+    var body: some View {
+        Form {
+            if sessions.records.isEmpty {
+                Section {
+                    Text("No sessions yet. A session is recorded each time Match has been connected for a minute or more.")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Section("Sessions") {
+                    ForEach(sessions.records.prefix(Self.shown)) { record in
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text(record.start.formatted(date: .abbreviated, time: .shortened))
+                                Spacer()
+                                Text(record.source == .portal ? "Reported by the portal" : "Measured by Match")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(StatusCopy.summary(of: record))
+                                .font(.callout.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Section {
+                    Text("Figures measured by Match count everything this Mac sent and received over Wi-Fi during the session.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("Clear history…", role: .destructive) { confirmingClear = true }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .frame(maxHeight: 460)
+        .confirmationDialog("Clear the session history?", isPresented: $confirmingClear) {
+            Button("Clear history", role: .destructive) { sessions.clear() }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 

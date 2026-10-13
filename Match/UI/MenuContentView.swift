@@ -23,7 +23,9 @@ struct MenuContentView: View {
                 set: { appState.setAutoLogin($0) }
             ))
 
-            if let session = appState.sessions.latest {
+            if appState.engineState.isConnected {
+                usage
+            } else if let session = appState.sessions.latest {
                 Text("Last session: \(StatusCopy.summary(of: session))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -41,7 +43,29 @@ struct MenuContentView: View {
         }
         .padding(16)
         .frame(width: 300, alignment: .leading)
-        .onAppear { appState.refreshNetworkDetails() }
+        .onAppear {
+            appState.refreshNetworkDetails()
+            appState.usage.menuIsOpen = true
+        }
+        .onDisappear { appState.usage.menuIsOpen = false }
+    }
+
+    /// The Wi-Fi interface's current speed, and its traffic since signing in.
+    private var usage: some View {
+        let usage = appState.usage
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 14) {
+                Label(StatusCopy.speed(usage.downloadRate), systemImage: "arrow.down")
+                Label(StatusCopy.speed(usage.uploadRate), systemImage: "arrow.up")
+            }
+            .font(.callout.monospacedDigit())
+            Text("""
+                This session: ↓ \(StatusCopy.bytes(Int64(clamping: usage.sessionDownloaded))) \
+                · ↑ \(StatusCopy.bytes(Int64(clamping: usage.sessionUploaded)))
+                """)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var header: some View {

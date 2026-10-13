@@ -42,6 +42,10 @@ Until that certificate exists, the Makefile signs ad-hoc and prints a warning. T
 
 Tests are always signed ad-hoc and built separately (in `build/TestDerivedData`), because macOS will not load a test bundle into an app signed with a self-signed certificate.
 
+## Usage figures
+
+While you are connected, the menu shows the current download and upload speed and the data used since signing in. **Settings → History** lists past sessions. Figures marked "Reported by the portal" come from the portal's own sign-out page; figures marked "Measured by Match" count everything your Mac sent and received over Wi-Fi during the session, so they can differ from what the portal counts. The history holds only times and byte counts, and stays on your Mac.
+
 ## After an update
 
 macOS ties a saved password to the exact version of the app that saved it. After each update, Match shows "Match was updated" in its menu with an **Unlock** button. Click it, type your Mac's login password in the macOS dialog, and choose **Always Allow**. This is needed once per update. It happens because Match is not signed with a paid Apple developer certificate.

@@ -1,4 +1,5 @@
 import AppKit
+import os
 import SwiftUI
 import Testing
 @testable import Match
@@ -20,7 +21,16 @@ struct SnapshotTests {
         settings.rememberCampusGateway("172.17.104.1")
         let store = InMemoryCredentialStore(credentials, needsApproval: needsApproval)
         let portal = FakePortal()
-        let sessions = SessionStore()
+        let sessions = SessionStore(fileURL: nil)
+        let counters = SteppingCounters()
+        // Each reading is taken two seconds after the last, so the speed shown is plausible.
+        let readings = OSAllocatedUnfairLock(initialState: 0.0)
+        let usage = UsageMonitor(counters: counters, interface: { "en0" }, sessions: sessions) {
+            Date(timeIntervalSince1970: 1_800_000_000 + readings.withLock { value in
+                value += 2
+                return value
+            })
+        }
         let engine = MatchEngine(
             detector: PortalDetector(http: portal, endpoints: .test),
             client: ProntoClient(http: portal, endpoints: .test),
@@ -34,6 +44,7 @@ struct SnapshotTests {
             credentials: store,
             settings: settings,
             sessions: sessions,
+            usage: usage,
             networkNames: FixedNetworkName(name: networkName),
             usingMockPortal: false
         )
@@ -63,8 +74,12 @@ struct SnapshotTests {
 
     @Test func menu() throws {
         let appState = try makeAppState()
-        appState.engineState = .connected(since: Date().addingTimeInterval(-4320))
+        let since = Date().addingTimeInterval(-4320)
+        appState.engineState = .connected(since: since)
+        appState.usage.connectionChanged(to: .connected(since: since))
+        appState.usage.sample()
         try snapshot(MenuContentView(appState: appState), "menu-connected")
+        appState.usage.connectionChanged(to: .noWiFi)
 
         appState.engineState = .failed(.sessionLimit)
         try snapshot(MenuContentView(appState: appState), "menu-failed")
@@ -106,5 +121,18 @@ struct SnapshotTests {
         let locked = try makeAppState(needsApproval: true)
         locked.selectedSettingsTab = .account
         try snapshot(SettingsView(appState: locked), "settings-account-locked")
+
+        appState.selectedSettingsTab = .history
+        try snapshot(SettingsView(appState: appState), "settings-history-empty")
+        let now = Date()
+        appState.sessions.recordMeasured(
+            start: now.addingTimeInterval(-9000), end: now.addingTimeInterval(-5400),
+            downloadBytes: 734_003_200, uploadBytes: 41_943_040
+        )
+        appState.sessions.record(PortalSession(
+            loginTime: now.addingTimeInterval(-3723), logoutTime: now, duration: 3723,
+            uploadBytes: 12_582_912, downloadBytes: 1_288_490_188
+        ))
+        try snapshot(SettingsView(appState: appState), "settings-history")
     }
 }

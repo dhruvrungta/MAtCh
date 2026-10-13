@@ -77,10 +77,28 @@ enum StatusCopy {
     }
 
     static func summary(of session: PortalSession) -> String {
-        let duration = Duration.seconds(session.duration)
+        summary(duration: session.duration, downloadBytes: session.downloadBytes, uploadBytes: session.uploadBytes)
+    }
+
+    static func summary(of record: SessionRecord) -> String {
+        summary(duration: record.duration, downloadBytes: record.downloadBytes, uploadBytes: record.uploadBytes)
+    }
+
+    static func summary(duration: TimeInterval, downloadBytes: Int64, uploadBytes: Int64) -> String {
+        "\(length(duration)) · ↓ \(bytes(downloadBytes)) · ↑ \(bytes(uploadBytes))"
+    }
+
+    static func length(_ duration: TimeInterval) -> String {
+        Duration.seconds(duration.rounded())
             .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated))
-        let down = session.downloadBytes.formatted(.byteCount(style: .binary))
-        let up = session.uploadBytes.formatted(.byteCount(style: .binary))
-        return "\(duration) · ↓ \(down) · ↑ \(up)"
+    }
+
+    static func bytes(_ count: Int64) -> String {
+        count.formatted(.byteCount(style: .binary))
+    }
+
+    /// A speed in bytes per second, as "1.2 MB/s".
+    static func speed(_ bytesPerSecond: Double) -> String {
+        "\(bytes(Int64(max(0, bytesPerSecond).rounded())))/s"
     }
 }

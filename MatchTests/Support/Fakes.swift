@@ -270,6 +270,32 @@ final class RecordingSessions: SessionRecording, Sendable {
     }
 }
 
+/// Interface counters a test sets by hand.
+final class FakeCounters: ByteCounting, Sendable {
+    private let current = OSAllocatedUnfairLock<InterfaceByteCounts?>(initialState: nil)
+
+    func set(received: UInt64, sent: UInt64) {
+        current.withLock { $0 = InterfaceByteCounts(received: received, sent: sent) }
+    }
+
+    func setUnavailable() { current.withLock { $0 = nil } }
+
+    func counts(for interface: String) -> InterfaceByteCounts? { current.withLock { $0 } }
+}
+
+/// Counters that move on by a fixed amount at every reading.
+final class SteppingCounters: ByteCounting, Sendable {
+    private let readings = OSAllocatedUnfairLock(initialState: UInt64(0))
+
+    func counts(for interface: String) -> InterfaceByteCounts? {
+        let reading = readings.withLock { value -> UInt64 in
+            value += 1
+            return value
+        }
+        return InterfaceByteCounts(received: reading * 1_800_000, sent: reading * 90_000)
+    }
+}
+
 struct FixedNetworkName: NetworkNaming {
     let name: String?
     func currentNetworkName() -> String? { name }

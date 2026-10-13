@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Builds the app's object graph and connects the system's events to the engine.
@@ -23,7 +24,16 @@ final class AppEnvironment {
             service: usingMockPortal ? KeychainStore.defaultService + ".mock" : KeychainStore.defaultService,
             approvals: settings
         )
-        let sessions = SessionStore()
+        // The app keeps no history file while it is only hosting the unit tests.
+        let historyFile = Self.isHostingTests
+            ? nil
+            : SessionStore.defaultFileURL(name: usingMockPortal ? "sessions.mock.json" : "sessions.json")
+        let sessions = SessionStore(fileURL: historyFile)
+        let usage = UsageMonitor(
+            counters: InterfaceCounters(),
+            interface: { WiFiInfo.interfaceName },
+            sessions: sessions
+        )
         let networkNames = WiFiInfo()
 
         engine = MatchEngine(
@@ -40,6 +50,7 @@ final class AppEnvironment {
             credentials: credentials,
             settings: settings,
             sessions: sessions,
+            usage: usage,
             networkNames: networkNames,
             usingMockPortal: usingMockPortal
         )
@@ -57,6 +68,12 @@ final class AppEnvironment {
     private func start(sources: [any NetworkEventSource]) {
         NotificationPresenter.install()
         appState.start()
+        // Close the session being measured when the app quits, so it reaches the history.
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [usage = appState.usage] _ in
+            MainActor.assumeIsolated { usage.flush() }
+        }
         for source in sources {
             forwarding.append(Task { [engine] in
                 for await event in source.events() {

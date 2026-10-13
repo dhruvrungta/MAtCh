@@ -26,7 +26,7 @@ final class AppState {
     }
 
     enum SettingsTab: Hashable {
-        case general, account, network, advanced, about
+        case general, account, network, history, advanced, about
     }
 
     /// Follows the engine. Only the engine's stream (and tests) should set it.
@@ -44,6 +44,7 @@ final class AppState {
     var selectedSettingsTab: SettingsTab = .general
 
     let sessions: SessionStore
+    let usage: UsageMonitor
     let location = LocationPermission()
     /// True when a debug build has been pointed at the mock portal.
     let usingMockPortal: Bool
@@ -63,6 +64,7 @@ final class AppState {
         credentials: any CredentialStore,
         settings: SettingsStore,
         sessions: SessionStore,
+        usage: UsageMonitor,
         networkNames: any NetworkNaming,
         usingMockPortal: Bool
     ) {
@@ -70,6 +72,7 @@ final class AppState {
         self.credentials = credentials
         self.settings = settings
         self.sessions = sessions
+        self.usage = usage
         self.networkNames = networkNames
         self.usingMockPortal = usingMockPortal
         self.autoLoginEnabled = settings.autoLoginEnabled
@@ -83,6 +86,7 @@ final class AppState {
         observation = Task { [weak self, engine] in
             for await state in await engine.states {
                 self?.engineState = state
+                self?.usage.connectionChanged(to: state)
                 self?.refreshNetworkDetails()
                 // The engine may have had the item approved (Connect) or found it locked.
                 self?.refreshKeychainStatus()
@@ -262,6 +266,7 @@ final class AppState {
             _ = setLaunchAtLogin(false)
         }
         settings.resetAll()
+        sessions.clear()
         reloadSettings()
         let autoLogin = autoLoginEnabled
         Task { await engine.setAutoLogin(autoLogin) }

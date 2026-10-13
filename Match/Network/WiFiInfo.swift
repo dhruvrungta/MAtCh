@@ -15,6 +15,11 @@ struct WiFiInfo: NetworkNaming {
     func currentNetworkName() -> String? {
         CWWiFiClient.shared().interface()?.ssid()
     }
+
+    /// The Wi-Fi interface's system name, such as `en0`. Needs no permission.
+    static var interfaceName: String {
+        CWWiFiClient.shared().interface()?.interfaceName ?? "en0"
+    }
 }
 
 /// Never knows the network name.
