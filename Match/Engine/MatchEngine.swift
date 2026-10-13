@@ -15,6 +15,10 @@ actor MatchEngine {
         var revalidationAttempts = 3
         var revalidationDelay: Duration = .seconds(2)
         var gatewayCheckTimeout: Duration = .seconds(2)
+        /// While in a failed state, how long before first looking again, and how
+        /// often after that. These looks are probes only.
+        var firstRecoveryCheck: Duration = .seconds(10)
+        var recoveryCheckInterval: Duration = .seconds(60)
     }
 
     /// What asked for a check. Ordered so that merging two requests keeps the stronger.
@@ -79,6 +83,9 @@ actor MatchEngine {
 
     private var healthTask: Task<Void, Never>?
     private var healthID = 0
+
+    private var recoveryTask: Task<Void, Never>?
+    private var recoveryID = 0
 
     init(
         detector: PortalDetector,
@@ -158,6 +165,7 @@ actor MatchEngine {
         case .wifiDown:
             cancelRun()
             stopHealthCheck()
+            stopRecoveryWatch()
             network = nil
             suppressAutoLoginUntilNextNetworkChange = false
             signedInOnThisNetwork = false
@@ -206,6 +214,7 @@ actor MatchEngine {
     func logout() {
         guard network != nil else { return }
         stopHealthCheck()
+        stopRecoveryWatch()
         cancelRun()
         suppressAutoLoginUntilNextNetworkChange = true
         set(.checking)
@@ -218,6 +227,7 @@ actor MatchEngine {
     func shutdown() {
         cancelRun()
         stopHealthCheck()
+        stopRecoveryWatch()
         for continuation in subscribers.values {
             continuation.finish()
         }
@@ -242,6 +252,7 @@ actor MatchEngine {
     private func startRun(_ request: Request) {
         // The run does its own probing, and restarts the health check if it ends connected.
         stopHealthCheck()
+        stopRecoveryWatch()
         runTask?.cancel()
         runID += 1
         // A run that begins by settling can be replaced from the moment it is created.
@@ -273,6 +284,8 @@ actor MatchEngine {
         runIsInterruptible = false
         if let next = pending {
             startRun(next)
+        } else if case .failed = state {
+            startRecoveryWatch()
         }
     }
 
@@ -458,6 +471,60 @@ actor MatchEngine {
         if signedInOnThisNetwork { return true }
         if let gateway = network?.gateway, settings.knownCampusGateways.contains(gateway) { return true }
         return networkNames.currentNetworkMatches(settings.campusNetworkNames)
+    }
+
+    // MARK: Recovery watch
+
+    /// A failure is not the last word: the internet may come up a little later, for
+    /// instance when the portal is slow to open up after a sign-in. While failed,
+    /// keep looking with probes that carry no credentials. Seeing the internet work
+    /// updates the status; seeing anything else changes nothing, and in particular
+    /// never signs in.
+    private func startRecoveryWatch() {
+        stopRecoveryWatch()
+        let id = recoveryID
+        let detector = detector
+        let clock = clock
+        let timing = timing
+        recoveryTask = Task {
+            var delay = timing.firstRecoveryCheck
+            while true {
+                do {
+                    try await clock.sleep(for: delay)
+                } catch {
+                    return
+                }
+                delay = timing.recoveryCheckInterval
+                let result = await detector.probe(overallTimeout: timing.probeTimeout)
+                if Task.isCancelled { return }
+                if result == .online {
+                    await self.recoveredWhileFailed(id: id)
+                    return
+                }
+            }
+        }
+    }
+
+    private func stopRecoveryWatch() {
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryID += 1
+    }
+
+    private func recoveredWhileFailed(id: Int) async {
+        guard id == recoveryID, runTask == nil, network != nil, case .failed(let reason) = state else { return }
+        recoveryTask = nil
+        Log.engine.debug("the internet works after all")
+        if isKnownCampusNetwork, !suppressAutoLoginUntilNextNetworkChange {
+            set(.connected(since: now()))
+            startHealthCheck()
+            if reason == .noInternetAfterLogin {
+                // The sign-in did work; its confirmation just came late.
+                await notifier.notify(.connected)
+            }
+        } else {
+            set(.online(campus: isKnownCampusNetwork))
+        }
     }
 
     // MARK: Health check

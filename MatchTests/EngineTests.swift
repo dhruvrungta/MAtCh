@@ -7,6 +7,8 @@ import Testing
 private final class Harness: Sendable {
     static let settle: Duration = .milliseconds(1500)
     static let healthInterval: Duration = .seconds(60)
+    static let firstRecoveryCheck: Duration = .seconds(10)
+    static let recoveryInterval: Duration = .seconds(60)
 
     let portal = FakePortal()
     let time = TestTime()
@@ -325,8 +327,9 @@ private final class Harness: Sendable {
         #expect(await harness.reaches(.failed(.network("unreachable"))))
         #expect(harness.portal.probeCount == 4)
         #expect(harness.portal.postCount == 0)
-        // It does not keep trying on its own.
-        #expect(harness.clock.pendingSleeps.isEmpty)
+        // From here on it only looks again now and then.
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        #expect(harness.clock.pendingSleeps == [Harness.firstRecoveryCheck])
         await harness.shutdown()
     }
 
@@ -350,7 +353,8 @@ private final class Harness: Sendable {
         await harness.wifiUp()
         #expect(await harness.reaches(.failed(.dnsFailure)))
         #expect(harness.portal.probeCount == 1)
-        #expect(harness.clock.pendingSleeps.isEmpty)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        #expect(harness.clock.pendingSleeps == [Harness.firstRecoveryCheck])
         await harness.shutdown()
     }
 
@@ -777,5 +781,85 @@ private final class Harness: Sendable {
         #expect(!FixedNetworkName(name: "T-VIT").currentNetworkMatches([]))
         #expect(!FixedNetworkName(name: nil).currentNetworkMatches(["VIT"]))
         #expect(!FixedNetworkName(name: "").currentNetworkMatches(["VIT"]))
+    }
+}
+
+@Suite struct RecoveryWatchTests {
+    @Test func aSlowPortalIsNoticedOnceTheInternetComesUp() async {
+        let harness = await Harness()
+        harness.portal.setLogin(.acceptButStayCaptive)
+        await harness.wifiUp()
+        for _ in 0..<2 {
+            #expect(await harness.clock.waitForSleep(of: .seconds(2)))
+            harness.clock.advance(by: .seconds(2))
+        }
+        #expect(await harness.reaches(.failed(.noInternetAfterLogin)))
+
+        // The portal opens up a little later than the engine was willing to wait.
+        harness.portal.setMode(.online)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+
+        #expect(await harness.reachesConnected())
+        #expect(await harness.clock.waitForSleep(of: Harness.healthInterval))
+        // Noticed by looking, not by signing in again.
+        #expect(harness.portal.postCount == 1)
+        #expect(await eventually {
+            harness.notifier.events == [.loginFailed(.noInternetAfterLogin, afterSessionExpiry: false), .connected]
+        })
+        await harness.shutdown()
+    }
+
+    @Test func theWatchKeepsLookingButNeverSignsIn() async {
+        let harness = await Harness()
+        harness.portal.setLogin(.reject("account expired"))
+        await harness.wifiUp()
+        #expect(await harness.reaches(.failed(.accountExpired)))
+        #expect(harness.portal.postCount == 1)
+
+        // The portal stays in the way: the watch sees it, and leaves it alone.
+        var probes = harness.portal.probeCount
+        for delay in [Harness.firstRecoveryCheck, Harness.recoveryInterval, Harness.recoveryInterval] {
+            #expect(await harness.clock.waitForSleep(of: delay))
+            harness.clock.advance(by: delay)
+            probes += 1
+            let expected = probes
+            #expect(await eventually { harness.portal.probeCount == expected })
+        }
+        #expect(await harness.clock.waitForSleep(of: Harness.recoveryInterval))
+        #expect(await harness.engine.state == .failed(.accountExpired))
+        #expect(harness.portal.postCount == 1)
+        await harness.shutdown()
+    }
+
+    @Test func recoveryOffCampusIsJustOnline() async {
+        let harness = await Harness()
+        harness.portal.setMode(.unreachable)
+        await harness.wifiUp(gateway: "192.168.1.1")
+        for delay in [2, 4, 8] {
+            #expect(await harness.clock.waitForSleep(of: .seconds(delay)))
+            harness.clock.advance(by: .seconds(delay))
+        }
+        #expect(await harness.reaches(.failed(.network("unreachable"))))
+
+        harness.portal.setMode(.online)
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+        harness.clock.advance(by: Harness.firstRecoveryCheck)
+        #expect(await harness.reaches(.online(campus: false)))
+        #expect(harness.portal.postCount == 0)
+        #expect(harness.notifier.events.isEmpty)
+        await harness.shutdown()
+    }
+
+    @Test func theWatchStopsWhenAnythingElseTakesOver() async {
+        let harness = await Harness()
+        harness.portal.setMode(.dnsFailure)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.failed(.dnsFailure)))
+        #expect(await harness.clock.waitForSleep(of: Harness.firstRecoveryCheck))
+
+        await harness.engine.handle(.wifiDown)
+        #expect(await eventually { harness.clock.pendingSleeps.isEmpty })
+        await harness.shutdown()
     }
 }

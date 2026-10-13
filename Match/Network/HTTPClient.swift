@@ -48,11 +48,21 @@ protocol HTTPClient: Sendable {
     func send(_ request: HTTPRequest) async throws(HTTPError) -> HTTPResponse
 }
 
+/// Sends each request over a connection of its own.
+///
+/// A captive portal intercepts connections, not requests. A connection opened while
+/// the portal was in the way stays intercepted after signing in, so a probe that
+/// reused it would go on reporting the portal while the internet works. Using a new
+/// session per request rules that out.
 final class URLSessionHTTPClient: HTTPClient {
-    private let session: URLSession
+    private let protocolClasses: [AnyClass]?
 
     /// `protocolClasses` lets tests intercept requests.
     init(protocolClasses: [AnyClass]? = nil) {
+        self.protocolClasses = protocolClasses
+    }
+
+    private func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
@@ -64,10 +74,13 @@ final class URLSessionHTTPClient: HTTPClient {
         if let protocolClasses {
             configuration.protocolClasses = protocolClasses
         }
-        session = URLSession(configuration: configuration, delegate: RedirectRefuser(), delegateQueue: nil)
+        return URLSession(configuration: configuration, delegate: RedirectRefuser(), delegateQueue: nil)
     }
 
     func send(_ request: HTTPRequest) async throws(HTTPError) -> HTTPResponse {
+        let session = makeSession()
+        defer { session.finishTasksAndInvalidate() }
+
         var urlRequest = URLRequest(url: request.url)
         urlRequest.httpMethod = request.method.rawValue
         urlRequest.timeoutInterval = request.timeout
