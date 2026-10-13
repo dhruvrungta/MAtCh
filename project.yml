@@ -39,6 +39,13 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Match/Match.entitlements
         ENABLE_APP_SANDBOX: YES
+      configs:
+        Debug:
+          # Xcode normally puts a Debug build's code in a separate library. The
+          # Hardened Runtime refuses to load that library when the signing
+          # certificate has no team identifier, as the self-signed one doesn't,
+          # so build Debug as a single binary like Release.
+          ENABLE_DEBUG_DYLIB: NO
 
   MatchTests:
     type: bundle.unit-test

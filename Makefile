@@ -19,9 +19,17 @@ SIGN_OVERRIDE := CODE_SIGN_IDENTITY=-
 $(warning "$(SIGN_NAME)" is not in the keychain: signing ad-hoc. Run tools/make_signing_cert.sh once to fix this.)
 endif
 
+DESTINATION := 'platform=macOS,arch=$(shell uname -m)'
+
 XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
-	-derivedDataPath $(DERIVED) -destination 'platform=macOS,arch=$(shell uname -m)' \
-	$(SIGN_OVERRIDE)
+	-derivedDataPath $(DERIVED) -destination $(DESTINATION) $(SIGN_OVERRIDE)
+
+# Tests are always signed ad-hoc, in their own build folder. The Hardened Runtime
+# will not load a test bundle into an app signed with a certificate that has no team
+# identifier, and the tests never touch the app's real Keychain item, so they don't
+# need the stable identity.
+TEST_XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
+	-derivedDataPath build/TestDerivedData -destination $(DESTINATION) CODE_SIGN_IDENTITY=-
 
 # Keeps compiler diagnostics and test results; drops the rest of xcodebuild's output.
 TEST_FILTER := grep -E '^/.*: (error|warning):|^(✘|✔ Suite|✔ Test run)|Testing failed|\*\* TEST'
@@ -46,7 +54,7 @@ check-names:
 	@echo "check-names: ok"
 
 test: check-names gen
-	@set -o pipefail; $(XCODEBUILD) -configuration Debug test 2>&1 | $(TEST_FILTER)
+	@set -o pipefail; $(TEST_XCODEBUILD) -configuration Debug test 2>&1 | $(TEST_FILTER)
 
 run: build
 	-pkill -x Match
@@ -63,7 +71,7 @@ run-mock: build
 test-mock: check-names gen
 	@python3 tools/mock_portal.py --host $(MOCK_HOST) --port $(MOCK_PORT) --quiet & \
 	MOCK_PID=$$!; trap "kill $$MOCK_PID 2>/dev/null" EXIT; sleep 1; \
-	set -o pipefail; TEST_RUNNER_MATCH_MOCK_BASE=$(MOCK_BASE) $(XCODEBUILD) -configuration Debug test \
+	set -o pipefail; TEST_RUNNER_MATCH_MOCK_BASE=$(MOCK_BASE) $(TEST_XCODEBUILD) -configuration Debug test \
 		-only-testing:MatchTests/MockPortalTests 2>&1 | $(TEST_FILTER)
 
 # Proves that the Release build carries no trace of the debug-only portal override.

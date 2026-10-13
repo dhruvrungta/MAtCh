@@ -36,6 +36,8 @@ tools/make_signing_cert.sh
 
 Until that certificate exists, the Makefile signs ad-hoc and prints a warning. An ad-hoc build works, but macOS asks for Keychain access again after every rebuild.
 
+Tests are always signed ad-hoc and built separately (in `build/TestDerivedData`), because macOS will not load a test bundle into an app signed with a self-signed certificate.
+
 ## Privacy
 
 - Your registration number and password are stored in your Mac's Keychain, and nowhere else.
