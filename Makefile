@@ -38,7 +38,7 @@ TEST_FILTER := grep -aE '^/.*: (error|warning):|✘ |✔ Suite|✔ Test run|Test
 # The version "make zip" builds; a real release takes it from its tag.
 VERSION ?= $(shell sed -n 's/^ *MARKETING_VERSION: *"\(.*\)"/\1/p' project.yml)
 
-.PHONY: gen build check-names test run install mock run-mock test-mock test-install lint snapshots check-release zip clean
+.PHONY: gen build check-names test run install mock run-mock test-mock test-install test-vault lint snapshots check-release zip clean
 
 gen:
 	xcodegen generate --quiet
@@ -104,6 +104,10 @@ check-release: gen
 # Runs install.sh against a made-up release, a made-up app and a temporary home folder.
 test-install:
 	tools/test_install.sh
+
+# Exercises the vault in a build signed with the real certificate. Maintainer's Mac only.
+test-vault:
+	tools/test_vault.sh
 
 # Needs ShellCheck (brew install shellcheck).
 lint:

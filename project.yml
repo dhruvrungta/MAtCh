@@ -35,6 +35,16 @@ targets:
     platform: macOS
     sources:
       - path: Match
+      # Shared with the vault, so the app and the vault always agree on the protocol.
+      - path: Vault/Sources/VaultProtocol.swift
+      # The vault is built and signed once (tools/build_vault.sh) and copied in as it
+      # is. It must never be rebuilt or re-signed as part of an ordinary build.
+      - path: Vault/MatchVault.xpc
+        type: file
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/XPCServices
     settings:
       base:
         PRODUCT_NAME: Match

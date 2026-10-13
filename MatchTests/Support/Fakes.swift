@@ -217,7 +217,13 @@ final class InMemoryCredentialStore: CredentialStore, Sendable {
         }
     }
 
-    func clear() throws { state.withLock { $0.credentials = nil } }
+    func clear() throws {
+        try state.withLock { state in
+            // Like the Keychain: a build that has not been approved may not delete the item.
+            if state.credentials != nil, state.needsApproval { throw KeychainError.needsApproval }
+            state.credentials = nil
+        }
+    }
 }
 
 final class InMemoryApprovals: KeychainApprovalRecord, Sendable {
@@ -267,6 +273,59 @@ final class RecordingSessions: SessionRecording, Sendable {
 
     func record(_ session: PortalSession) async {
         recorded.withLock { $0.append(session) }
+    }
+}
+
+/// A stand-in for the vault.
+final class FakeVault: VaultAccess, Sendable {
+    private struct State {
+        var available: Bool
+        var items: [String: Credentials] = [:]
+        var loads = 0
+        var failing = false
+    }
+
+    private let state: OSAllocatedUnfairLock<State>
+
+    init(available: Bool = true) {
+        state = OSAllocatedUnfairLock(initialState: State(available: available))
+    }
+
+    /// How many times the secret itself was asked for.
+    var loads: Int { state.withLock { $0.loads } }
+    func item(_ service: String) -> Credentials? { state.withLock { $0.items[service] } }
+    /// Makes every later request fail, as when the service has gone away.
+    func startFailing() { state.withLock { $0.failing = true } }
+
+    func isAvailable() -> Bool { state.withLock { $0.available } }
+
+    func account(service: String) throws -> String? {
+        try state.withLock { state in
+            if state.failing { throw VaultClient.Failure.unavailable("gone") }
+            return state.items[service]?.userId
+        }
+    }
+
+    func load(service: String) throws -> Credentials? {
+        try state.withLock { state in
+            if state.failing { throw VaultClient.Failure.unavailable("gone") }
+            state.loads += 1
+            return state.items[service]
+        }
+    }
+
+    func save(_ credentials: Credentials, service: String) throws {
+        try state.withLock { state in
+            if state.failing { throw VaultClient.Failure.unavailable("gone") }
+            state.items[service] = credentials
+        }
+    }
+
+    func clear(service: String) throws {
+        try state.withLock { state in
+            if state.failing { throw VaultClient.Failure.unavailable("gone") }
+            state.items[service] = nil
+        }
     }
 }
 

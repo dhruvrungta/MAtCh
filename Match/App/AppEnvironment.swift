@@ -10,6 +10,14 @@ final class AppEnvironment {
     private var forwarding: [Task<Void, Never>] = []
 
     init() {
+        // A check of the vault that can be run from Terminal on a signed build:
+        //   Match --vault-check save|load|clear
+        if let flag = ProcessInfo.processInfo.arguments.firstIndex(of: Self.vaultCheckArgument) {
+            let arguments = ProcessInfo.processInfo.arguments
+            Self.checkVault(arguments.indices.contains(flag + 1) ? arguments[flag + 1] : "load")
+            exit(0)
+        }
+
         let endpoints = PortalEndpoints.resolve(
             arguments: ProcessInfo.processInfo.arguments,
             isDebugBuild: PortalEndpoints.isDebugBuild
@@ -20,9 +28,13 @@ final class AppEnvironment {
         let http = URLSessionHTTPClient()
         let mockDefaults = usingMockPortal ? UserDefaults(suiteName: "\(AppIdentity.bundleID).mock") : nil
         let settings = SettingsStore(defaults: mockDefaults ?? .standard)
-        let credentials = KeychainStore(
-            service: usingMockPortal ? KeychainStore.defaultService + ".mock" : KeychainStore.defaultService,
-            approvals: settings
+        // The sign-in lives in the vault. Versions from before the vault kept it in an
+        // item of the app's own, which is moved across the first time it is read.
+        let suffix = usingMockPortal ? ".mock" : ""
+        let credentials = VaultCredentialStore(
+            vault: VaultClient(),
+            service: VaultCredentialStore.defaultService + suffix,
+            legacy: KeychainStore(service: KeychainStore.defaultService + suffix, approvals: settings)
         )
         // The app keeps no history file while it is only hosting the unit tests.
         let historyFile = Self.isHostingTests
@@ -108,6 +120,29 @@ final class AppEnvironment {
     }
 
     static let uninstallArgument = "--uninstall-cleanup"
+    static let vaultCheckArgument = "--vault-check"
+
+    /// Exercises the vault with an item of its own, never the real sign-in.
+    private static func checkVault(_ operation: String) {
+        let vault = VaultClient()
+        let service = VaultInfo.allowedServicePrefix + ".check"
+        do {
+            switch operation {
+            case "save":
+                try vault.save(Credentials(userId: "CHECK", password: "check-\(BuildIdentity.current.prefix(8))"), service: service)
+                print("vault-check save: ok")
+            case "clear":
+                try vault.clear(service: service)
+                print("vault-check clear: ok")
+            default:
+                let found = try vault.load(service: service)
+                print("vault-check load: \(found == nil ? "nothing saved" : "found an item saved by build \(found?.password.dropFirst(6) ?? "?")")")
+            }
+            print("vault version \(try vault.version()), asked by build \(BuildIdentity.current.prefix(8))")
+        } catch {
+            print("vault-check \(operation): FAILED: \(error)")
+        }
+    }
 
     private static func cleanUpForUninstall(
         credentials: any CredentialStore, settings: SettingsStore, sessions: SessionStore

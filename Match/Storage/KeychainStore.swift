@@ -46,6 +46,8 @@ enum KeychainError: Error, Equatable {
     case malformedItem
     /// macOS refuses to let this build change the item until the user has approved it.
     case needsApproval
+    /// The vault stopped answering part-way through.
+    case vaultUnavailable(String)
 
     var message: String {
         switch self {
@@ -56,6 +58,8 @@ enum KeychainError: Error, Equatable {
             return "the saved item could not be read"
         case .needsApproval:
             return "macOS needs you to approve Match first. Click Unlock and choose Always Allow."
+        case .vaultUnavailable(let reason):
+            return "Match's Keychain helper did not respond (\(reason)). Quit Match, open it again and retry."
         }
     }
 }

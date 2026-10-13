@@ -73,9 +73,9 @@ curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash
 
 You can switch the daily check off in **Settings → General**, and check by hand with **Check for Updates…** in the menu.
 
-### After an update: Unlock
+### Updating from a version before 0.2
 
-macOS ties a saved password to the exact version of the app that saved it. After each update, Match shows "Match was updated" in its menu with an **Unlock** button. Click it, type your Mac's login password in the macOS dialog, and choose **Always Allow**. This is needed once per update, and it happens because Match is not signed with a paid Apple developer certificate.
+Older versions kept your saved sign-in in a way that made macOS ask for approval after every update. The first time you open a newer version it shows "Match was updated" with an **Unlock** button. Click it, type your Mac's login password in the macOS dialog, and choose **Always Allow**. Match then moves the sign-in somewhere that updates don't disturb, and you are not asked again.
 
 ## Uninstalling
 
@@ -115,6 +115,7 @@ make install       # copy the build to /Applications and launch it from there
 make snapshots     # render every screen to build/snapshots
 make test-mock     # end-to-end tests against a mock portal
 make test-install  # test install.sh against a made-up release
+make test-vault    # check the vault with the real signing certificate
 make zip           # build the signed release zip, its SHA-256 and latest.json
 ```
 
@@ -128,7 +129,15 @@ Builds are signed with a self-signed certificate named "Match Self-Signed", so t
 tools/make_signing_cert.sh
 ```
 
-Until that certificate exists, the Makefile signs ad-hoc and prints a warning. The certificate does not avoid the Unlock step described above: every build with different code needs it once. Tests are always signed ad-hoc and built separately, because macOS will not load a test bundle into an app signed with a self-signed certificate.
+Until that certificate exists, the Makefile signs ad-hoc and prints a warning. Tests are always signed ad-hoc and built separately, because macOS will not load a test bundle into an app signed with a self-signed certificate.
+
+### The vault
+
+macOS ties a saved password to the exact build of the program that saved it, and asks the user to approve any other build. To keep updates from triggering that, the password is not saved by Match itself but by a small helper inside it, the vault (`Vault/`), which is built and signed once and shipped unchanged in every release. It only answers a copy of Match signed with the project's certificate.
+
+`Vault/MatchVault.xpc` is committed as a binary on purpose. **Don't rebuild it** unless the vault itself has to change: `tools/build_vault.sh` produces what the Keychain sees as a different program, and everyone who updates past that point is asked to approve once more. An ad-hoc build can't use the vault and falls back to saving the password itself. `make test-vault` checks the vault with the real certificate.
+
+If you fork Match and sign with your own certificate, run `tools/build_vault.sh` once so the vault answers your builds.
 
 ### Making a release
 
