@@ -22,9 +22,11 @@ private final class Harness: Sendable {
     init(
         credentials: Credentials? = Credentials(userId: "25BIT0088", password: "s3cret pass"),
         autoLogin: Bool = true,
-        knownGateways: Set<String> = []
+        knownGateways: Set<String> = [],
+        keychainNeedsApproval: Bool = false,
+        networkName: String? = nil
     ) async {
-        self.credentials = InMemoryCredentialStore(credentials)
+        self.credentials = InMemoryCredentialStore(credentials, needsApproval: keychainNeedsApproval)
         self.settings = InMemorySettings(autoLogin: autoLogin, gateways: knownGateways)
         let time = time
         engine = MatchEngine(
@@ -34,6 +36,7 @@ private final class Harness: Sendable {
             settings: settings,
             notifier: notifier,
             sessions: sessions,
+            networkNames: FixedNetworkName(name: networkName),
             clock: time.clock,
             now: { time.date }
         )
@@ -663,5 +666,116 @@ private final class Harness: Sendable {
         #expect(await leadsToPortal(.success(HTTPResponse(status: 204))).0 == false)
         #expect(await leadsToPortal(.failure(.other("connection refused"))).0 == false)
         #expect(await leadsToPortal(.failure(.timedOut)).0 == false)
+    }
+}
+
+@Suite struct KeychainApprovalTests {
+    @Test func anAutomaticSignInNeverBringsUpTheKeychainDialog() async {
+        let harness = await Harness(keychainNeedsApproval: true)
+
+        await harness.wifiUp()
+        #expect(await harness.reaches(.keychainLocked))
+        #expect(harness.credentials.promptCount == 0)
+        #expect(harness.portal.postCount == 0)
+        #expect(await eventually { harness.notifier.events == [.keychainApprovalNeeded] })
+
+        // Further automatic checks stay quiet: no dialog, and no second notification.
+        let probes = harness.portal.probeCount
+        await harness.engine.handle(.didWake)
+        #expect(await eventually { harness.portal.probeCount == probes + 1 })
+        #expect(await harness.reaches(.keychainLocked))
+        #expect(harness.credentials.promptCount == 0)
+        #expect(harness.notifier.events == [.keychainApprovalNeeded])
+        await harness.shutdown()
+    }
+
+    @Test func theUserAskingMayBringUpTheDialogAndThenSignsIn() async {
+        let harness = await Harness(keychainNeedsApproval: true)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.keychainLocked))
+
+        await harness.engine.connectNow()
+        #expect(await harness.reachesConnected())
+        #expect(harness.credentials.promptCount == 1)
+        #expect(harness.portal.postCount == 1)
+        await harness.shutdown()
+    }
+
+    @Test func unlockingElsewhereLetsTheEngineCarryOn() async throws {
+        let harness = await Harness(keychainNeedsApproval: true)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.keychainLocked))
+
+        // The app's Unlock button reads the item with the dialog allowed, then tells the engine.
+        _ = try harness.credentials.load(allowPrompt: true)
+        await harness.engine.credentialsChanged()
+        #expect(await harness.reachesConnected())
+        #expect(harness.credentials.promptCount == 1)
+        await harness.shutdown()
+    }
+
+    @Test func approvalIsNotNeededWhileNothingNeedsSigningIn() async {
+        let harness = await Harness(knownGateways: ["10.0.0.1"], keychainNeedsApproval: true)
+        harness.portal.setMode(.online)
+        await harness.wifiUp()
+        #expect(await harness.reachesConnected())
+        #expect(harness.credentials.promptCount == 0)
+        #expect(harness.notifier.events.isEmpty)
+        await harness.shutdown()
+    }
+
+    @Test func expiryWhileLockedReportsItOnce() async {
+        let harness = await Harness(knownGateways: ["10.0.0.1"], keychainNeedsApproval: true)
+        harness.portal.setMode(.online)
+        await harness.connectWithoutSigningIn()
+
+        harness.portal.setMode(.captive)
+        await harness.healthTick()
+        await harness.healthTick()
+        #expect(await harness.clock.waitForSleep(of: Harness.healthInterval))
+        harness.clock.advance(by: Harness.healthInterval)
+
+        #expect(await harness.reaches(.keychainLocked))
+        #expect(harness.portal.postCount == 0)
+        #expect(await eventually { harness.notifier.events == [.keychainApprovalNeeded] })
+        await harness.shutdown()
+    }
+}
+
+@Suite struct NetworkNameTests {
+    @Test func aCampusNameCountsAsCampus() async {
+        let harness = await Harness(networkName: "T-VIT")
+        harness.portal.setMode(.online)
+        await harness.wifiUp(gateway: nil)
+        #expect(await harness.reachesConnected())
+        #expect(harness.portal.postCount == 0)
+        #expect(harness.portal.gatewayRequests.isEmpty)
+        await harness.shutdown()
+    }
+
+    @Test func anotherNameDoesNot() async {
+        let harness = await Harness(networkName: "Cafe Guest")
+        harness.portal.setMode(.online)
+        await harness.wifiUp(gateway: nil)
+        #expect(await harness.reaches(.online(campus: false)))
+        await harness.shutdown()
+    }
+
+    @Test func aCampusNameNeverUnlocksCredentials() async {
+        let harness = await Harness(networkName: "T-VIT")
+        harness.portal.setMode(.foreignPortal)
+        await harness.wifiUp()
+        #expect(await harness.reaches(.notCampus))
+        #expect(harness.portal.postCount == 0)
+        await harness.shutdown()
+    }
+
+    @Test func matchingIgnoresCaseAndEmptyFragments() {
+        #expect(FixedNetworkName(name: "t-vit").currentNetworkMatches(["VIT"]))
+        #expect(FixedNetworkName(name: "T-VIT").currentNetworkMatches(["", "hostel", "vit"]))
+        #expect(!FixedNetworkName(name: "T-VIT").currentNetworkMatches([""]))
+        #expect(!FixedNetworkName(name: "T-VIT").currentNetworkMatches([]))
+        #expect(!FixedNetworkName(name: nil).currentNetworkMatches(["VIT"]))
+        #expect(!FixedNetworkName(name: "").currentNetworkMatches(["VIT"]))
     }
 }

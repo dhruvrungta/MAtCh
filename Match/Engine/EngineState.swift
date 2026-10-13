@@ -27,6 +27,9 @@ enum EngineState: Equatable, Sendable {
     /// Signed in to the portal, and the internet works.
     case connected(since: Date)
     case needsCredentials
+    /// A sign-in is saved, but macOS wants the user's approval before this build may
+    /// read it. Only the user asking (Unlock or Connect) may bring up that dialog.
+    case keychainLocked
     case failed(FailureReason)
 
     var isConnected: Bool {

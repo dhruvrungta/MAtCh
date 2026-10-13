@@ -2,29 +2,20 @@ import SwiftUI
 
 struct MenuContentView: View {
     let appState: AppState
-    @State private var showingCredentials = false
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            if let session = appState.sessions.latest {
-                Text(Self.summary(of: session))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if appState.showsUnlockReminder {
+                unlockReminder
             }
 
             if let action = appState.primaryAction {
-                Button(action.title) {
-                    if action == .addCredentials {
-                        showingCredentials = true
-                    } else {
-                        appState.perform(action)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action.title) { run(action) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             }
 
             Toggle("Sign in automatically", isOn: Binding(
@@ -32,30 +23,40 @@ struct MenuContentView: View {
                 set: { appState.setAutoLogin($0) }
             ))
 
-            Divider()
-
-            if showingCredentials {
-                CredentialsForm(appState: appState) { showingCredentials = false }
-            } else {
-                Button(appState.savedUserId == nil ? "Add credentials…" : "Change credentials…") {
-                    showingCredentials = true
-                }
+            if let session = appState.sessions.latest {
+                Text("Last session: \(StatusCopy.summary(of: session))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
 
-            Button("Quit Match") { NSApplication.shared.terminate(nil) }
-                .keyboardShortcut("q")
+            HStack {
+                Button("Settings…") { showSettings(.general) }
+                    .keyboardShortcut(",")
+                Spacer()
+                Button("Quit Match") { NSApplication.shared.terminate(nil) }
+                    .keyboardShortcut("q")
+            }
         }
         .padding(16)
         .frame(width: 300, alignment: .leading)
+        .onAppear { appState.refreshNetworkDetails() }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(appState.statusTitle)
-                .font(.headline)
-            if let detail = appState.statusDetail {
+            // Re-evaluated periodically so "Connected · 12m" keeps up.
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                Text(StatusCopy.title(for: appState.engineState, now: context.date))
+                    .font(.headline)
+            }
+            if let name = appState.networkName {
+                Text(name)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            if let detail = StatusCopy.detail(for: appState.engineState) {
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -69,64 +70,34 @@ struct MenuContentView: View {
         }
     }
 
-    static func summary(of session: PortalSession) -> String {
-        let duration = Duration.seconds(session.duration)
-            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated))
-        let down = session.downloadBytes.formatted(.byteCount(style: .binary))
-        let up = session.uploadBytes.formatted(.byteCount(style: .binary))
-        return "Last session: \(duration) · ↓ \(down) · ↑ \(up)"
-    }
-}
-
-/// A plain form for entering the registration number and password.
-private struct CredentialsForm: View {
-    let appState: AppState
-    let onDone: () -> Void
-
-    @State private var userId = ""
-    @State private var password = ""
-    @State private var message: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("Registration number, e.g. \(RegistrationNumber.example)", text: $userId)
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
-            SecureField("Wi-Fi password", text: $password)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit(save)
-
-            if let message {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Text("Stored in your Mac's Keychain.")
+    private var unlockReminder: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Match was updated")
+                .font(.subheadline.weight(.semibold))
+            Text(StatusCopy.keychainApprovalAdvice)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-
-            HStack {
-                Button("Save", action: save)
-                    .keyboardShortcut(.defaultAction)
-                Button("Cancel", action: onDone)
-                Spacer()
-                if appState.savedUserId != nil {
-                    Button("Remove", role: .destructive) {
-                        message = appState.removeCredentials()
-                        if message == nil { onDone() }
-                    }
-                }
-            }
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Unlock") { appState.unlockSavedSignIn() }
         }
-        .onAppear { userId = appState.savedUserId ?? "" }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
     }
 
-    private func save() {
-        message = appState.saveCredentials(userId: userId, password: password)
-        if message == nil {
-            password = ""
-            onDone()
+    private func run(_ action: AppState.PrimaryAction) {
+        if action == .addCredentials {
+            showSettings(.account)
+        } else {
+            appState.perform(action)
         }
+    }
+
+    private func showSettings(_ tab: AppState.SettingsTab) {
+        appState.selectedSettingsTab = tab
+        // A menu-bar app is not active, so its windows open behind everything
+        // unless it is activated first.
+        NSApp.activate()
+        openSettings()
     }
 }

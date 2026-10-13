@@ -8,8 +8,12 @@ struct MatchApp: App {
         MenuBarExtra {
             MenuContentView(appState: environment.appState)
         } label: {
-            Image(systemName: environment.appState.menuBarSymbol)
+            StatusIcon(appearance: environment.appState.iconAppearance)
         }
         .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView(appState: environment.appState)
+        }
     }
 }

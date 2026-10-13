@@ -4,6 +4,7 @@ PROJECT   := Match.xcodeproj
 SCHEME    := Match
 DERIVED   := build/DerivedData
 APP       := $(DERIVED)/Build/Products/Debug/Match.app
+INSTALLED_APP := /Applications/Match.app
 RELEASE_APP := $(DERIVED)/Build/Products/Release/Match.app
 MOCK_HOST ?= 127.0.0.1
 MOCK_PORT ?= 8765
@@ -32,9 +33,9 @@ TEST_XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) \
 	-derivedDataPath build/TestDerivedData -destination $(DESTINATION) CODE_SIGN_IDENTITY=-
 
 # Keeps compiler diagnostics and test results; drops the rest of xcodebuild's output.
-TEST_FILTER := grep -E '^/.*: (error|warning):|^(✘|✔ Suite|✔ Test run)|Testing failed|\*\* TEST'
+TEST_FILTER := grep -aE '^/.*: (error|warning):|✘ |✔ Suite|✔ Test run|Testing failed|\*\* TEST'
 
-.PHONY: gen build check-names test run mock run-mock test-mock check-release clean
+.PHONY: gen build check-names test run install mock run-mock test-mock snapshots check-release clean
 
 gen:
 	xcodegen generate --quiet
@@ -60,6 +61,14 @@ run: build
 	-pkill -x Match
 	open -n $(APP)
 
+# Copies the Debug build into the Applications folder and runs it from there, which
+# is where launch at login expects to find it.
+install: build
+	-pkill -x Match
+	rm -rf $(INSTALLED_APP)
+	ditto $(APP) $(INSTALLED_APP)
+	open $(INSTALLED_APP)
+
 mock:
 	python3 tools/mock_portal.py --host $(MOCK_HOST) --port $(MOCK_PORT)
 
@@ -73,6 +82,13 @@ test-mock: check-names gen
 	MOCK_PID=$$!; trap "kill $$MOCK_PID 2>/dev/null" EXIT; sleep 1; \
 	set -o pipefail; TEST_RUNNER_MATCH_MOCK_BASE=$(MOCK_BASE) $(TEST_XCODEBUILD) -configuration Debug test \
 		-only-testing:MatchTests/MockPortalTests 2>&1 | $(TEST_FILTER)
+
+# Renders every screen to a PNG in build/snapshots, for looking at layouts.
+snapshots: gen
+	@mkdir -p build/snapshots
+	@TEST_RUNNER_MATCH_SNAPSHOTS=1 $(TEST_XCODEBUILD) -configuration Debug test \
+		-only-testing:MatchTests/SnapshotTests 2>&1 | grep '^SNAPSHOT ' | while read -r _ name data; do \
+		echo "$$data" | base64 -d > "build/snapshots/$$name.png"; echo "build/snapshots/$$name.png"; done
 
 # Proves that the Release build carries no trace of the debug-only portal override.
 check-release: gen

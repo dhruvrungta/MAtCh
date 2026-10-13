@@ -49,6 +49,7 @@ actor MatchEngine {
     private let settings: any EngineSettings
     private let notifier: any Notifying
     private let sessions: any SessionRecording
+    private let networkNames: any NetworkNaming
     private let clock: any Clock<Duration>
     private let now: @Sendable () -> Date
     private let timing: Timing
@@ -67,6 +68,7 @@ actor MatchEngine {
     /// The gateway already asked whether it leads to the VIT portal, so that each
     /// network is asked at most once.
     private var gatewayCheckedForCampus: String?
+    private var notifiedKeychainApproval = false
 
     private var runTask: Task<Void, Never>?
     private var runID = 0
@@ -85,6 +87,7 @@ actor MatchEngine {
         settings: any EngineSettings,
         notifier: any Notifying,
         sessions: any SessionRecording,
+        networkNames: any NetworkNaming = NoNetworkName(),
         clock: any Clock<Duration> = ContinuousClock(),
         now: @escaping @Sendable () -> Date = { Date() },
         timing: Timing = Timing(),
@@ -96,6 +99,7 @@ actor MatchEngine {
         self.settings = settings
         self.notifier = notifier
         self.sessions = sessions
+        self.networkNames = networkNames
         self.clock = clock
         self.now = now
         self.timing = timing
@@ -190,7 +194,7 @@ actor MatchEngine {
         credentialsRejected = false
         guard network != nil else { return }
         switch state {
-        case .needsCredentials, .failed(.wrongCredentials):
+        case .needsCredentials, .keychainLocked, .failed(.wrongCredentials):
             requestRun(.automatic)
         default:
             break
@@ -357,16 +361,30 @@ actor MatchEngine {
 
     /// Only ever called from the `.vitPortal` branch above.
     private func signIn(_ trigger: Trigger, id: Int) async {
-        let saved: Credentials?
+        // Only a run the user asked for may let macOS show its Keychain dialog.
+        let lookup: CredentialLookup
         do {
-            saved = try credentials.load()
+            lookup = try credentials.load(allowPrompt: trigger == .user)
         } catch {
             Log.storage.error("could not read the saved sign-in: \(String(describing: error), privacy: .public)")
             set(.failed(.unknown))
             return
         }
-        guard let saved else {
+        let saved: Credentials
+        switch lookup {
+        case .found(let credentials):
+            saved = credentials
+            notifiedKeychainApproval = false
+        case .missing:
             set(.needsCredentials)
+            return
+        case .needsApproval:
+            set(.keychainLocked)
+            // Say so once, not on every check that runs into it.
+            if !notifiedKeychainApproval {
+                notifiedKeychainApproval = true
+                await notifier.notify(.keychainApprovalNeeded)
+            }
             return
         }
 
@@ -438,8 +456,8 @@ actor MatchEngine {
 
     private var isKnownCampusNetwork: Bool {
         if signedInOnThisNetwork { return true }
-        guard let gateway = network?.gateway else { return false }
-        return settings.knownCampusGateways.contains(gateway)
+        if let gateway = network?.gateway, settings.knownCampusGateways.contains(gateway) { return true }
+        return networkNames.currentNetworkMatches(settings.campusNetworkNames)
     }
 
     // MARK: Health check

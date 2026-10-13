@@ -177,28 +177,72 @@ final class FakePortal: HTTPClient, Sendable {
 }
 
 final class InMemoryCredentialStore: CredentialStore, Sendable {
-    private let stored: OSAllocatedUnfairLock<Credentials?>
-
-    init(_ credentials: Credentials?) {
-        stored = OSAllocatedUnfairLock(initialState: credentials)
+    private struct State {
+        var credentials: Credentials?
+        /// Stands in for macOS wanting the user's approval before the item can be read.
+        var needsApproval = false
+        var promptCount = 0
     }
 
-    func load() throws -> Credentials? { stored.withLock { $0 } }
-    func save(_ credentials: Credentials) throws { stored.withLock { $0 = credentials } }
-    func clear() throws { stored.withLock { $0 = nil } }
+    private let state: OSAllocatedUnfairLock<State>
+
+    init(_ credentials: Credentials?, needsApproval: Bool = false) {
+        state = OSAllocatedUnfairLock(initialState: State(credentials: credentials, needsApproval: needsApproval))
+    }
+
+    /// How many times a read was allowed to ask the user.
+    var promptCount: Int { state.withLock { $0.promptCount } }
+
+    func savedUserId() throws -> String? { state.withLock { $0.credentials?.userId } }
+
+    func approvalNeeded() throws -> Bool { state.withLock { $0.credentials != nil && $0.needsApproval } }
+
+    func load(allowPrompt: Bool) throws -> CredentialLookup {
+        state.withLock { state in
+            guard let credentials = state.credentials else { return .missing }
+            if state.needsApproval {
+                guard allowPrompt else { return .needsApproval }
+                // The user is asked, and approves.
+                state.promptCount += 1
+                state.needsApproval = false
+            }
+            return .found(credentials)
+        }
+    }
+
+    func save(_ credentials: Credentials) throws {
+        state.withLock {
+            $0.credentials = credentials
+            $0.needsApproval = false
+        }
+    }
+
+    func clear() throws { state.withLock { $0.credentials = nil } }
+}
+
+final class InMemoryApprovals: KeychainApprovalRecord, Sendable {
+    private let build = OSAllocatedUnfairLock<String?>(initialState: nil)
+
+    var keychainApprovedBuild: String? { build.withLock { $0 } }
+    func setKeychainApprovedBuild(_ build: String?) { self.build.withLock { $0 = build } }
 }
 
 final class InMemorySettings: EngineSettings, Sendable {
     private struct State {
         var autoLogin: Bool
         var gateways: Set<String>
+        var names: [String]
     }
 
     private let state: OSAllocatedUnfairLock<State>
 
-    init(autoLogin: Bool = true, gateways: Set<String> = []) {
-        state = OSAllocatedUnfairLock(initialState: State(autoLogin: autoLogin, gateways: gateways))
+    init(autoLogin: Bool = true, gateways: Set<String> = [], campusNetworkNames: [String] = ["VIT"]) {
+        state = OSAllocatedUnfairLock(
+            initialState: State(autoLogin: autoLogin, gateways: gateways, names: campusNetworkNames)
+        )
     }
+
+    var campusNetworkNames: [String] { state.withLock { $0.names } }
 
     var autoLoginEnabled: Bool { state.withLock { $0.autoLogin } }
     func setAutoLoginEnabled(_ enabled: Bool) { state.withLock { $0.autoLogin = enabled } }
@@ -224,6 +268,11 @@ final class RecordingSessions: SessionRecording, Sendable {
     func record(_ session: PortalSession) async {
         recorded.withLock { $0.append(session) }
     }
+}
+
+struct FixedNetworkName: NetworkNaming {
+    let name: String?
+    func currentNetworkName() -> String? { name }
 }
 
 /// Finds files in the test bundle.

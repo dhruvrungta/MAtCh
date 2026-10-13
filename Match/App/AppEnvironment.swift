@@ -5,6 +5,7 @@ import Foundation
 final class AppEnvironment {
     let appState: AppState
     private let engine: MatchEngine
+    private let onboarding = OnboardingWindow()
     private var forwarding: [Task<Void, Never>] = []
 
     init() {
@@ -16,28 +17,36 @@ final class AppEnvironment {
         // so real credentials never reach a mock and test ones never reach the real portal.
         let usingMockPortal = endpoints != .production
         let http = URLSessionHTTPClient()
-        let credentials = KeychainStore(
-            service: usingMockPortal ? KeychainStore.defaultService + ".mock" : KeychainStore.defaultService
-        )
         let mockDefaults = usingMockPortal ? UserDefaults(suiteName: "\(AppIdentity.bundleID).mock") : nil
         let settings = SettingsStore(defaults: mockDefaults ?? .standard)
+        let credentials = KeychainStore(
+            service: usingMockPortal ? KeychainStore.defaultService + ".mock" : KeychainStore.defaultService,
+            approvals: settings
+        )
         let sessions = SessionStore()
+        let networkNames = WiFiInfo()
 
         engine = MatchEngine(
             detector: PortalDetector(http: http, endpoints: endpoints),
             client: ProntoClient(http: http, endpoints: endpoints),
             credentials: credentials,
             settings: settings,
-            notifier: SilentNotifier(),
-            sessions: sessions
+            notifier: UserNotifier(settings: settings),
+            sessions: sessions,
+            networkNames: networkNames
         )
         appState = AppState(
             engine: engine,
             credentials: credentials,
             settings: settings,
             sessions: sessions,
+            networkNames: networkNames,
             usingMockPortal: usingMockPortal
         )
+        appState.showOnboarding = { [weak self] in
+            guard let self else { return }
+            onboarding.show(appState: appState)
+        }
 
         // When the app is only hosting the unit tests it must stay inert.
         if !Self.isHostingTests {
@@ -53,6 +62,13 @@ final class AppEnvironment {
                     await engine.handle(event)
                 }
             })
+        }
+        if appState.savedUserId == nil {
+            // Wait for the app to finish launching before putting a window on screen.
+            Task { [appState] in
+                try? await Task.sleep(for: .milliseconds(400))
+                appState.showOnboarding()
+            }
         }
     }
 

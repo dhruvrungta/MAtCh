@@ -273,35 +273,81 @@ import Testing
 }
 
 @Suite struct KeychainStoreTests {
+    private func makeStore(
+        service: String = "\(AppIdentity.bundleID).tests.\(UUID().uuidString)",
+        build: String = BuildIdentity.current,
+        approvals: InMemoryApprovals = InMemoryApprovals()
+    ) -> KeychainStore {
+        KeychainStore(service: service, build: build, approvals: approvals)
+    }
+
     @Test func savesLoadsReplacesAndClears() throws {
-        let store = KeychainStore(service: "\(AppIdentity.bundleID).tests.\(UUID().uuidString)")
+        let store = makeStore()
         defer { try? store.clear() }
 
-        #expect(try store.load() == nil)
+        #expect(try store.savedUserId() == nil)
+        #expect(try store.load(allowPrompt: false) == .missing)
 
         try store.save(Credentials(userId: "25BIT0088", password: "first pässword"))
-        #expect(try store.load() == Credentials(userId: "25BIT0088", password: "first pässword"))
+        #expect(try store.savedUserId() == "25BIT0088")
+        #expect(try store.load(allowPrompt: false) == .found(Credentials(userId: "25BIT0088", password: "first pässword")))
 
         // Saving again, even under another account, leaves exactly one item.
         try store.save(Credentials(userId: "24BCE1234", password: "second"))
-        #expect(try store.load() == Credentials(userId: "24BCE1234", password: "second"))
+        #expect(try store.load(allowPrompt: false) == .found(Credentials(userId: "24BCE1234", password: "second")))
 
         try store.clear()
-        #expect(try store.load() == nil)
+        #expect(try store.savedUserId() == nil)
+        #expect(try store.load(allowPrompt: false) == .missing)
 
         // Clearing when there is nothing to clear is not an error.
         try store.clear()
     }
 
     @Test func storesAreSeparatedByService() throws {
-        let first = KeychainStore(service: "\(AppIdentity.bundleID).tests.\(UUID().uuidString)")
-        let second = KeychainStore(service: "\(AppIdentity.bundleID).tests.\(UUID().uuidString)")
+        let first = makeStore()
+        let second = makeStore()
         defer {
             try? first.clear()
             try? second.clear()
         }
         try first.save(Credentials(userId: "25BIT0088", password: "one"))
-        #expect(try second.load() == nil)
+        #expect(try second.load(allowPrompt: false) == .missing)
+    }
+
+    @Test func aBuildThatWasNotApprovedIsToldToAskWithoutTouchingTheSecret() throws {
+        let service = "\(AppIdentity.bundleID).tests.\(UUID().uuidString)"
+        let approvals = InMemoryApprovals()
+        let saver = makeStore(service: service, approvals: approvals)
+        defer { try? saver.clear() }
+        try saver.save(Credentials(userId: "25BIT0088", password: "pw"))
+        #expect(approvals.keychainApprovedBuild == BuildIdentity.current)
+
+        // The same item, seen by what claims to be a different build.
+        let updated = makeStore(service: service, build: "a-newer-build", approvals: approvals)
+        #expect(try updated.savedUserId() == "25BIT0088")
+        #expect(try updated.approvalNeeded())
+        #expect(try !saver.approvalNeeded())
+        #expect(try updated.load(allowPrompt: false) == .needsApproval)
+        #expect(approvals.keychainApprovedBuild == BuildIdentity.current)
+
+        // Once the user has been asked and the read succeeds, that build is remembered.
+        #expect(try updated.load(allowPrompt: true) == .found(Credentials(userId: "25BIT0088", password: "pw")))
+        #expect(approvals.keychainApprovedBuild == "a-newer-build")
+        #expect(try !updated.approvalNeeded())
+        #expect(try updated.load(allowPrompt: false) == .found(Credentials(userId: "25BIT0088", password: "pw")))
+    }
+
+    @Test func nothingSavedIsMissingEvenForAnUnapprovedBuild() throws {
+        let store = makeStore(build: "a-newer-build")
+        #expect(try !store.approvalNeeded())
+        #expect(try store.load(allowPrompt: false) == .missing)
+    }
+
+    @Test func theBuildIdentityIsACodeHash() {
+        #expect(BuildIdentity.current.count == 40)
+        let isHex = BuildIdentity.current.allSatisfy { $0.isHexDigit }
+        #expect(isHex)
     }
 }
 
