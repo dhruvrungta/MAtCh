@@ -100,9 +100,12 @@ struct UserNotifier: Notifying {
         let notification = UNMutableNotificationContent()
         notification.title = content.title
         notification.body = content.body
-        // One identifier per category, so a newer notification replaces the older one
-        // instead of piling up.
-        let request = UNNotificationRequest(identifier: content.category.rawValue, content: notification, trigger: nil)
+        // Clear Match's older notifications so they don't pile up, then post this one
+        // under an identifier of its own. Reusing an identifier makes macOS update the
+        // old notification in place, which does not bring up a banner again.
+        center.removeAllDeliveredNotifications()
+        let identifier = "\(content.category.rawValue)-\(UUID().uuidString)"
+        let request = UNNotificationRequest(identifier: identifier, content: notification, trigger: nil)
         do {
             try await center.add(request)
             Log.ui.debug("notification posted: \(content.category.rawValue)")
