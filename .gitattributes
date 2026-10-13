@@ -1,0 +1,2 @@
+# The vault is shipped byte for byte as committed; nothing may rewrite its files.
+Vault/MatchVault.xpc/** binary
