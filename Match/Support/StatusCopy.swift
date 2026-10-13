@@ -4,7 +4,7 @@ import Foundation
 enum StatusCopy {
     static func title(for state: EngineState, now: Date = Date()) -> String {
         switch state {
-        case .noWiFi: "Wi-Fi is off"
+        case .noWiFi: "Not connected to Wi-Fi"
         case .checking: "Checking…"
         case .online(let campus): campus ? "Signed out" : "Online"
         case .notCampus: "Not on VIT Wi-Fi"
@@ -19,7 +19,7 @@ enum StatusCopy {
 
     static func detail(for state: EngineState) -> String? {
         switch state {
-        case .noWiFi: "Turn on Wi-Fi and join the hostel network."
+        case .noWiFi: "Match will sign in as soon as this Mac joins the hostel Wi-Fi."
         case .checking, .loggingIn, .connected: nil
         case .online(let campus):
             campus

@@ -28,6 +28,9 @@ private let allStates: [EngineState] = [
             == "Signed in, but the internet didn't come up. Try again in a minute.")
         #expect(StatusCopy.title(for: .failed(.wrongCredentials)) == "Wrong password")
         #expect(StatusCopy.title(for: .notCampus) == "Not on VIT Wi-Fi")
+        // This state also covers Wi-Fi that is on but has not joined a network yet,
+        // as just after the Mac starts up, so it must not claim that Wi-Fi is off.
+        #expect(StatusCopy.title(for: .noWiFi) == "Not connected to Wi-Fi")
         #expect(StatusCopy.title(for: .loggingIn) == "Signing in…")
     }
 
