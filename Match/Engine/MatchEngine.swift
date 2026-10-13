@@ -138,7 +138,7 @@ actor MatchEngine {
     private func set(_ newState: EngineState) {
         guard newState != state else { return }
         state = newState
-        Log.engine.debug("state: \(String(describing: newState), privacy: .public)")
+        Log.engine.debug("state: \(String(describing: newState))")
         for continuation in subscribers.values {
             continuation.yield(newState)
         }
@@ -332,7 +332,7 @@ actor MatchEngine {
             result = await detector.probe(overallTimeout: timing.probeTimeout)
             guard isCurrent(id) else { return }
         }
-        Log.engine.debug("probe result: \(String(describing: result), privacy: .public)")
+        Log.engine.debug("probe result: \(String(describing: result))")
 
         switch result {
         case .online:
@@ -383,7 +383,7 @@ actor MatchEngine {
         do {
             lookup = try credentials.load(allowPrompt: trigger == .user)
         } catch {
-            Log.storage.error("could not read the saved sign-in: \(String(describing: error), privacy: .public)")
+            Log.storage.error("could not read the saved sign-in: \(String(describing: error))")
             set(.failed(.unknown))
             return
         }

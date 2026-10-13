@@ -143,15 +143,38 @@ private let allStates: [EngineState] = [
         #expect(Diagnostics.redact(text, secrets: [""]) == text)
     }
 
-    @Test func diagnosticsReportReadsTheAppsOwnLog() {
-        // Runs inside the sandboxed app, so this also shows the log store can be read there.
-        let marker = "diagnostics-probe-\(UUID().uuidString)"
-        Log.ui.error("\(marker, privacy: .public) for 25BIT0088")
-        let report = Diagnostics.report(state: .checking, secrets: ["25BIT0088"])
-        #expect(!report.contains("could not be read"))
-        #expect(report.contains(marker))
+    @Test func diagnosticsReportCarriesTheRecentLogWithSecretsRemoved() {
+        let history = LogHistory(limit: 200)
+        history.record(category: "engine", message: "state: checking")
+        history.record(category: "portal", message: "sign-in for 25BIT0088: HTTP 200")
+        let report = Diagnostics.report(state: .checking, secrets: ["25BIT0088"], history: history)
+        #expect(report.contains("[engine] state: checking"))
+        #expect(report.contains("[portal] sign-in for <redacted>: HTTP 200"))
         #expect(!report.contains("25BIT0088"))
-        #expect(report.split(separator: "\n").count <= Diagnostics.lineLimit + 4)
+    }
+
+    @Test func diagnosticsSayWhenThereIsNothingYet() {
+        let report = Diagnostics.report(state: .noWiFi, secrets: [], history: LogHistory(limit: 200))
+        #expect(report.contains("(nothing has been logged yet)"))
+    }
+
+    @Test func everyLogCallLandsInTheHistory() {
+        let marker = "history-probe-\(UUID().uuidString)"
+        Log.ui.debug(marker)
+        Log.ui.error(marker)
+        let lines = LogHistory.shared.recent.filter { $0.contains(marker) }
+        #expect(lines.count == 2)
+        #expect(lines.contains { $0.contains("[ui] error: \(marker)") })
+    }
+
+    @Test func theHistoryKeepsOnlyTheMostRecentLines() {
+        let history = LogHistory(limit: 3)
+        for index in 1...10 {
+            history.record(category: "engine", message: "line \(index)")
+        }
+        #expect(history.recent.count == 3)
+        #expect(history.recent.last?.hasSuffix("line 10") == true)
+        #expect(history.recent.first?.hasSuffix("line 8") == true)
     }
 
     @Test func diagnosticsHeaderNamesTheState() {

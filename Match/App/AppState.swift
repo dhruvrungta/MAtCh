@@ -129,7 +129,7 @@ final class AppState {
             savedUserId = try credentials.savedUserId()
             keychainApprovalNeeded = try credentials.approvalNeeded()
         } catch {
-            Log.storage.error("could not read the saved sign-in: \(String(describing: error), privacy: .public)")
+            Log.storage.error("could not read the saved sign-in: \(String(describing: error))")
         }
     }
 
@@ -145,7 +145,7 @@ final class AppState {
         do {
             try credentials.save(Credentials(userId: normalized, password: password))
         } catch {
-            Log.storage.error("could not save the sign-in: \(String(describing: error), privacy: .public)")
+            Log.storage.error("could not save the sign-in: \(String(describing: error))")
             return "Couldn't save to the Keychain: \(Self.describe(error))"
         }
         refreshKeychainStatus()
@@ -158,7 +158,7 @@ final class AppState {
         do {
             try credentials.clear()
         } catch {
-            Log.storage.error("could not remove the sign-in: \(String(describing: error), privacy: .public)")
+            Log.storage.error("could not remove the sign-in: \(String(describing: error))")
             return "Couldn't remove the saved sign-in: \(Self.describe(error))"
         }
         refreshKeychainStatus()
@@ -178,7 +178,7 @@ final class AppState {
                         _ = try credentials.load(allowPrompt: true)
                     }
                 } catch {
-                    Log.storage.error("could not unlock the saved sign-in: \(String(describing: error), privacy: .public)")
+                    Log.storage.error("could not unlock the saved sign-in: \(String(describing: error))")
                 }
             }.value
             refreshKeychainStatus()
@@ -199,7 +199,7 @@ final class AppState {
             try LoginItem.setEnabled(enabled)
             return nil
         } catch {
-            Log.ui.error("could not change launch at login: \(error.localizedDescription, privacy: .public)")
+            Log.ui.error("could not change launch at login: \(error.localizedDescription)")
             return "Couldn't change launch at login: \(error.localizedDescription)"
         }
     }

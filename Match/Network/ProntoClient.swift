@@ -106,7 +106,7 @@ struct ProntoClient: Sendable {
                 return .unexpectedStatus(response.status)
             }
         } catch {
-            Log.portal.error("sign-in failed: \(error.message, privacy: .public)")
+            Log.portal.error("sign-in failed: \(error.message)")
             return error == .dnsFailure ? .dnsFailure : .transport(error.message)
         }
     }
@@ -124,7 +124,7 @@ struct ProntoClient: Sendable {
                     return outcome
                 }
             }
-            Log.portal.error("sign-out failed: \(error.message, privacy: .public)")
+            Log.portal.error("sign-out failed: \(error.message)")
             return LogoutOutcome(success: false, session: nil)
         }
     }

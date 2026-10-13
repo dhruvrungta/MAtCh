@@ -60,7 +60,7 @@ struct UserNotifier: Notifying {
     func notify(_ event: NotificationEvent) async {
         let content = NotificationContent(event)
         guard settings.isNotificationEnabled(content.category) else {
-            Log.ui.debug("notification not posted, switched off: \(content.category.rawValue, privacy: .public)")
+            Log.ui.debug("notification not posted, switched off: \(content.category.rawValue)")
             return
         }
         await Self.post(content)
@@ -71,7 +71,7 @@ struct UserNotifier: Notifying {
         let center = UNUserNotificationCenter.current()
         let status = await center.notificationSettings().authorizationStatus
         guard status == .authorized || status == .provisional else {
-            Log.ui.debug("notification not posted, macOS permission is \(status.rawValue): \(content.category.rawValue, privacy: .public)")
+            Log.ui.debug("notification not posted, macOS permission is \(status.rawValue): \(content.category.rawValue)")
             return
         }
 
@@ -83,9 +83,9 @@ struct UserNotifier: Notifying {
         let request = UNNotificationRequest(identifier: content.category.rawValue, content: notification, trigger: nil)
         do {
             try await center.add(request)
-            Log.ui.debug("notification posted: \(content.category.rawValue, privacy: .public)")
+            Log.ui.debug("notification posted: \(content.category.rawValue)")
         } catch {
-            Log.ui.error("could not post a notification: \(error.localizedDescription, privacy: .public)")
+            Log.ui.error("could not post a notification: \(error.localizedDescription)")
         }
     }
 
@@ -95,7 +95,7 @@ struct UserNotifier: Notifying {
         do {
             return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
         } catch {
-            Log.ui.error("notification permission request failed: \(error.localizedDescription, privacy: .public)")
+            Log.ui.error("notification permission request failed: \(error.localizedDescription)")
             return false
         }
     }

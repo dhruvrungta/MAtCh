@@ -58,12 +58,11 @@ struct PortalDetector: Sendable {
             let request = HTTPRequest(url: url, timeout: Self.requestTimeout)
             let response = try await http.send(request)
             result = classify(response)
-            Log.network.debug(
-                "\(label, privacy: .public): HTTP \(response.status) in \((ContinuousClock.now - started).seconds, format: .fixed(precision: 2)) s"
-            )
+            let elapsed = String(format: "%.2f", (ContinuousClock.now - started).seconds)
+            Log.network.debug("\(label): HTTP \(response.status) in \(elapsed) s")
         } catch {
             result = error == .dnsFailure ? .dnsFailure : .error(error.message)
-            Log.network.debug("\(label, privacy: .public) failed: \(error.message, privacy: .public)")
+            Log.network.debug("\(label) failed: \(error.message)")
         }
         return result
     }

@@ -27,7 +27,7 @@ struct NetworkMonitor: NetworkEventSource {
                     return true
                 }
                 guard isNew else { return }
-                Log.network.debug("network: \(String(describing: event), privacy: .public)")
+                Log.network.debug("network: \(String(describing: event))")
                 continuation.yield(event)
             }
             continuation.onTermination = { _ in monitor.cancel() }
