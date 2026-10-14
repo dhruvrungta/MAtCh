@@ -219,14 +219,17 @@ private final class Exchange: @unchecked Sendable {
     private let queue = DispatchQueue(label: "\(AppIdentity.bundleID).wifi-http")
     private var received = Data()
     private var requestWasSent = false
-    private var completion: ((Result<HTTPResponse, WiFiHTTPClient.Failure>) -> Void)?
+    private var completion: (@Sendable (Result<HTTPResponse, WiFiHTTPClient.Failure>) -> Void)?
 
     init(connection: NWConnection, request: Data) {
         self.connection = connection
         self.request = request
     }
 
-    func start(timeout: TimeInterval, completion: @escaping (Result<HTTPResponse, WiFiHTTPClient.Failure>) -> Void) {
+    func start(
+        timeout: TimeInterval,
+        completion: @escaping @Sendable (Result<HTTPResponse, WiFiHTTPClient.Failure>) -> Void
+    ) {
         queue.async {
             self.completion = completion
             // This keeps the exchange alive until `complete` clears the handler,
