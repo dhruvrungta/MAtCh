@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, so check-names can read every commit message.
+          fetch-depth: 0
+
+      - name: Install XcodeGen and ShellCheck
+        run: brew install xcodegen shellcheck
+
+      - name: Lint the shell scripts
+        run: make lint
+
+      - name: Check names
+        run: make check-names
+
+      - name: Generate project
+        run: make gen
+
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test
+
+      - name: Check Release build
+        run: make check-release
+
+      - name: Test the installer
+        run: make test-install

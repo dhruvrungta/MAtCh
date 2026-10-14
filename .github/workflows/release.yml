@@ -1,0 +1,154 @@
+name: Release
+
+# Runs when a tag such as v1.2.0 is pushed. It builds and signs the app, publishes a
+# GitHub Release with the zip and its checksum, and then publishes latest.json and
+# install.sh to GitHub Pages, which is what the installer and the app's update check read.
+#
+# It needs two repository secrets, made once with tools/make_signing_cert.sh:
+#   SIGNING_CERT_P12        the certificate and key, base64-encoded
+#   SIGNING_CERT_PASSWORD   the password chosen for that file
+# and GitHub Pages switched on with "GitHub Actions" as its source.
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, so check-names can read every commit message.
+          fetch-depth: 0
+
+      - name: Read the version from the tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "The tag must look like v1.2.0, not $GITHUB_REF_NAME" >&2; exit 1 ;;
+          esac
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Check the changelog has this version
+        run: tools/release_notes.sh "$VERSION" > "$RUNNER_TEMP/release-notes.md"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Check names
+        run: make check-names
+
+      - name: Test
+        run: make test
+
+      - name: Import the signing certificate
+        env:
+          SIGNING_CERT_P12: ${{ secrets.SIGNING_CERT_P12 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          if [ -z "$SIGNING_CERT_P12" ] || [ -z "$SIGNING_CERT_PASSWORD" ]; then
+            echo "The SIGNING_CERT_P12 and SIGNING_CERT_PASSWORD secrets are not set." >&2
+            exit 1
+          fi
+          keychain="$RUNNER_TEMP/match-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          printf '%s' "$SIGNING_CERT_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$SIGNING_CERT_PASSWORD" -T /usr/bin/codesign > /dev/null
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
+          rm -f "$RUNNER_TEMP/signing.p12"
+          # codesign only finds identities in keychains on the search list, and on this
+          # runner's macOS only trusted ones. This machine is thrown away afterwards.
+          existing="$(security list-keychains -d user | tr -d '"' | xargs)"
+          # shellcheck disable=SC2086
+          security list-keychains -d user -s "$keychain" $existing
+          security find-certificate -c "Match Self-Signed" -p "$keychain" > "$RUNNER_TEMP/signing-cert.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign \
+            -k /Library/Keychains/System.keychain "$RUNNER_TEMP/signing-cert.pem"
+          echo "Signing identities in the temporary keychain:"
+          security find-identity -p codesigning "$keychain"
+          # The identity is named by its hash, so there can be no doubt which one signs.
+          identity="$(security find-certificate -c "Match Self-Signed" -Z "$keychain" | awk '/SHA-1/ {print $NF}')"
+          if [ -z "$identity" ]; then
+            echo "The certificate in SIGNING_CERT_P12 is not named \"Match Self-Signed\"." >&2
+            exit 1
+          fi
+          echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          echo "SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Build, sign and verify
+        run: |
+          # The checkout keeps only a plain copy of the tag that triggered this run, without
+          # its message, so fetch the tag itself before reading the message.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          notes="$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")"
+          tools/build_release.sh "$VERSION" \
+            --build "$GITHUB_RUN_NUMBER" \
+            --identity "$SIGNING_IDENTITY" \
+            --keychain "$SIGNING_KEYCHAIN" \
+            --notes "${notes:-Match $VERSION}"
+
+      - name: Delete the signing keychain
+        if: always()
+        run: |
+          if [ -n "${SIGNING_KEYCHAIN:-}" ]; then
+            security delete-keychain "$SIGNING_KEYCHAIN" || true
+          fi
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/release/Match-$VERSION.zip" \
+            "build/release/Match-$VERSION.zip.sha256" \
+            --title "Match $VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+
+      - name: Prepare the Pages site
+        run: |
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repository="${GITHUB_REPOSITORY##*/}"
+          mkdir -p site
+          cp build/release/latest.json site/latest.json
+          # The published installer points at whichever repository published it.
+          sed -e "s/^REPO_OWNER=.*/REPO_OWNER=\"$owner\"/" \
+              -e "s/^REPO_NAME=.*/REPO_NAME=\"$repository\"/" \
+              install.sh > site/install.sh
+          bash -n site/install.sh
+          cat > site/index.html <<EOF
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Match</title>
+          <p>Match signs you in to the VIT hostel Wi-Fi automatically.</p>
+          <p>Install or update: <code>curl -fsSL https://$owner.github.io/$repository/install.sh | bash</code></p>
+          <p><a href="https://github.com/$owner/$repository">Project page</a></p>
+          EOF
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  # Publishing the site comes last, so latest.json never names a release that isn't there.
+  publish-site:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
