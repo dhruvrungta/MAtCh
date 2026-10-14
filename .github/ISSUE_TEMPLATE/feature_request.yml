@@ -1,0 +1,16 @@
+name: Idea
+description: Suggest something Match could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like Match to do?
+      description: What's the situation, and what would make it better?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything else?
+      description: How you handle it today, or anything that would help.

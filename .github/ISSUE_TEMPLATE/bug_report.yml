@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in Match doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. **Never paste your Wi-Fi password here.** For a security problem, use the Security tab instead (see SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: menu
+    attributes:
+      label: What did Match's menu say?
+      description: The status at the top of the menu when it happened, for example "Couldn't sign in" or "Portal detected".
+  - type: input
+    id: match-version
+    attributes:
+      label: Match version
+      description: Settings → About.
+      placeholder: "0.2.2"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Apple menu → About This Mac.
+      placeholder: "15.3"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Settings → Advanced → Copy diagnostics, then paste here. Your registration number is removed automatically.
+      render: text
