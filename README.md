@@ -3,10 +3,10 @@
 <h1 align="center">MAtCh</h1>
 
 <p align="center">
-  <a href="https://github.com/dhruvrungta/match/actions/workflows/ci.yml"><img src="https://github.com/dhruvrungta/match/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/dhruvrungta/match/releases/latest"><img src="https://img.shields.io/github/v/release/dhruvrungta/match" alt="Latest release"></a>
+  <a href="https://github.com/dhruvrungta/MAtCh/actions/workflows/ci.yml"><img src="https://github.com/dhruvrungta/MAtCh/actions/workflows/ci.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/dhruvrungta/MAtCh/releases/latest"><img src="https://img.shields.io/github/v/release/dhruvrungta/MAtCh" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/macOS-14%2B-informational" alt="macOS 14 or later">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/dhruvrungta/match" alt="MIT licence"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/dhruvrungta/MAtCh" alt="MIT licence"></a>
 </p>
 
 MAtCh is a macOS menu-bar app that signs you in to the VIT hostel Wi-Fi automatically. It notices the Pronto Networks login page, signs in with the registration number and password you saved once, and signs in again when your session runs out. You stop seeing the login page.
@@ -23,7 +23,7 @@ It needs macOS 14 Sonoma or later, and runs on both Apple silicon and Intel Macs
 Open Terminal and paste:
 
 ```sh
-curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash
+curl -fsSL https://dhruvrungta.github.io/MAtCh/install.sh | bash
 ```
 
 The script downloads the latest release, checks it against its published SHA-256, copies MAtCh into your Applications folder and opens it. It does not use `sudo` and never asks for your Wi-Fi password.
@@ -32,7 +32,7 @@ The script downloads the latest release, checks it against its published SHA-256
 
 If you would rather not run a script:
 
-1. Download `Match-<version>.zip` from the [Releases page](https://github.com/dhruvrungta/match/releases).
+1. Download `Match-<version>.zip` from the [Releases page](https://github.com/dhruvrungta/MAtCh/releases).
 2. Double-click the zip to unpack it, and move **MAtCh** into your **Applications** folder.
 3. Open MAtCh. macOS blocks it the first time, because it is not notarized (see [Why macOS warns about MAtCh](#why-macos-warns-about-match)).
 4. Open **System Settings → Privacy & Security**, scroll down to the message about MAtCh, and click **Open Anyway**. Confirm when asked.
@@ -83,7 +83,7 @@ While you are connected, the menu shows the current download and upload speed an
 MAtCh checks once a day whether a newer version exists, and shows "MAtCh <version> is available" in its menu when one does. It never downloads or installs anything by itself. To update, run the install command again:
 
 ```sh
-curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash
+curl -fsSL https://dhruvrungta.github.io/MAtCh/install.sh | bash
 ```
 
 You can switch the daily check off in **Settings → General**, and check by hand with **Check for Updates…** in the menu.
@@ -95,7 +95,7 @@ Older versions kept your saved sign-in in a way that made macOS ask for approval
 ## Uninstalling
 
 ```sh
-curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash -s -- --uninstall
+curl -fsSL https://dhruvrungta.github.io/MAtCh/install.sh | bash -s -- --uninstall
 ```
 
 This asks for confirmation, then removes the app, its saved sign-in, its settings and its history. If macOS won't let the script remove something, it tells you what to delete by hand.

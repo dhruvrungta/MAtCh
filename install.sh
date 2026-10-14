@@ -4,10 +4,10 @@
 # hostel Wi-Fi.
 #
 #   Install or update:
-#       curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash
+#       curl -fsSL https://dhruvrungta.github.io/MAtCh/install.sh | bash
 #
 #   Remove MAtCh and everything it stored:
-#       curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash -s -- --uninstall
+#       curl -fsSL https://dhruvrungta.github.io/MAtCh/install.sh | bash -s -- --uninstall
 #
 #   Options:
 #       --uninstall     remove MAtCh, its saved sign-in, settings and history
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 REPO_OWNER="dhruvrungta"
-REPO_NAME="match"
+REPO_NAME="MAtCh"
 BUNDLE_ID="com.dhruvrungta.match"
 APP_NAME="Match.app"
 MINIMUM_MACOS=14

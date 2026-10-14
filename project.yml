@@ -13,7 +13,7 @@ settings:
     # The GitHub repository that publishes releases. The app builds its update-check
     # address and its install command from these two names.
     MATCH_GITHUB_OWNER: dhruvrungta
-    MATCH_GITHUB_REPOSITORY: match
+    MATCH_GITHUB_REPOSITORY: MAtCh
     MARKETING_VERSION: "0.2.3"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "6.0"

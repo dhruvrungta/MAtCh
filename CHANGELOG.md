@@ -5,7 +5,8 @@ What changed in each version of MAtCh. The newest is at the top.
 ## [0.2.3] - 2026-10-15
 
 ### Changed
-- The app is now called MAtCh. It shows under that name in the menu, its windows and notifications, Finder and Spotlight. Nothing else changes: your saved sign-in and settings carry over, and updating doesn't ask for your Mac password.
+- The app is now called MAtCh. It shows under that name in the menu, its windows and notifications, Finder and Spotlight. Your saved sign-in and settings carry over, and updating doesn't ask for your Mac password.
+- The project moved to github.com/dhruvrungta/MAtCh, and the install and update address to https://dhruvrungta.github.io/MAtCh/. Versions 0.2.0 to 0.2.2 look for updates at the old address and can no longer find them, so install this version once with the new command in the README.
 
 ## [0.2.2] - 2026-10-14
 
@@ -32,7 +33,7 @@ The first public release.
 - Your password is kept in the Keychain by a small helper that never changes between versions, so updating MAtCh doesn't ask for your Mac password.
 - Requests to the login page go over Wi-Fi even when the Mac is also connected another way.
 
-[0.2.3]: https://github.com/dhruvrungta/match/releases/tag/v0.2.3
-[0.2.2]: https://github.com/dhruvrungta/match/releases/tag/v0.2.2
-[0.2.1]: https://github.com/dhruvrungta/match/releases/tag/v0.2.1
-[0.2.0]: https://github.com/dhruvrungta/match/releases/tag/v0.2.0
+[0.2.3]: https://github.com/dhruvrungta/MAtCh/releases/tag/v0.2.3
+[0.2.2]: https://github.com/dhruvrungta/MAtCh/releases/tag/v0.2.2
+[0.2.1]: https://github.com/dhruvrungta/MAtCh/releases/tag/v0.2.1
+[0.2.0]: https://github.com/dhruvrungta/MAtCh/releases/tag/v0.2.0
