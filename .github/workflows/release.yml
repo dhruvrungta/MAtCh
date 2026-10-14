@@ -64,6 +64,16 @@ jobs:
           security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$SIGNING_CERT_PASSWORD" -T /usr/bin/codesign > /dev/null
           security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
           rm -f "$RUNNER_TEMP/signing.p12"
+          # codesign only finds identities in keychains on the search list, and on this
+          # runner's macOS only trusted ones. This machine is thrown away afterwards.
+          existing="$(security list-keychains -d user | tr -d '"' | xargs)"
+          # shellcheck disable=SC2086
+          security list-keychains -d user -s "$keychain" $existing
+          security find-certificate -c "Match Self-Signed" -p "$keychain" > "$RUNNER_TEMP/signing-cert.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign \
+            -k /Library/Keychains/System.keychain "$RUNNER_TEMP/signing-cert.pem"
+          echo "Signing identities in the temporary keychain:"
+          security find-identity -p codesigning "$keychain"
           # The identity is named by its hash, so there can be no doubt which one signs.
           identity="$(security find-certificate -c "Match Self-Signed" -Z "$keychain" | awk '/SHA-1/ {print $NF}')"
           if [ -z "$identity" ]; then
