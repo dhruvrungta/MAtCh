@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.png" width="128" height="128" alt="Match's icon: a matchstick whose flame is the Wi-Fi signal"></p>
+
 # Match
 
 Match is a macOS menu-bar app that signs you in to the VIT hostel Wi-Fi automatically. It notices the Pronto Networks login page, signs in with the registration number and password you saved once, and signs in again when your session runs out. You stop seeing the login page.

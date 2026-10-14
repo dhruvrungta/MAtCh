@@ -318,9 +318,9 @@ private struct AdvancedSettings: View {
 private struct AboutSettings: View {
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: "wifi")
-                .font(.system(size: 40))
-                .foregroundStyle(.tint)
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .frame(width: 72, height: 72)
             Text("Match")
                 .font(.title2.weight(.semibold))
             Text("Version \(Self.version)")

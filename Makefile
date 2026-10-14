@@ -38,7 +38,11 @@ TEST_FILTER := grep -aE '^/.*: (error|warning):|✘ |✔ Suite|✔ Test run|Test
 # The version "make zip" builds; a real release takes it from its tag.
 VERSION ?= $(shell sed -n 's/^ *MARKETING_VERSION: *"\(.*\)"/\1/p' project.yml)
 
-.PHONY: gen build check-names test run install mock run-mock test-mock test-install test-vault lint snapshots check-release zip clean
+.PHONY: icon gen build check-names test run install mock run-mock test-mock test-install test-vault lint snapshots check-release zip clean
+
+# Redraws the app icon from tools/make_icon.swift.
+icon:
+	swift tools/make_icon.swift
 
 gen:
 	xcodegen generate --quiet
