@@ -44,6 +44,9 @@ check() {
     fi
 }
 
+contains() { grep -q -- "$2" <<< "$1"; }
+lacks() { ! grep -q -- "$2" <<< "$1"; }
+
 # Builds a stand-in Match.app whose only talent is recording that it was asked to clean up.
 make_release() {
     local version="$1" identifier="$2" build="$root/build-$1"
@@ -101,8 +104,15 @@ check "leaves the app runnable" test -x "$apps/Match.app/Contents/MacOS/Match"
 echo "update"
 make_release 1.1.0 "$test_id"
 publish 1.1.0
-run_installer --dir "$apps" --no-open >/dev/null
+output="$(run_installer --dir "$apps" --no-open)"
 check "replaces the old version" test "$(installed_version)" = "1.1.0"
+check "doesn't ask a user of a recent version to unlock" lacks "$output" "Unlock"
+
+echo "update from a version before the vault"
+defaults write "$apps/Match.app/Contents/Info" CFBundleShortVersionString 0.1.0
+output="$(run_installer --dir "$apps" --no-open)"
+check "asks the user to unlock once" contains "$output" "updated from Match 0.1.0"
+check "and installs the new version" test "$(installed_version)" = "1.1.0"
 
 echo "a download that doesn't match its checksum"
 make_release 1.2.0 "$test_id"

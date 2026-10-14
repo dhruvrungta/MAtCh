@@ -85,6 +85,9 @@ jobs:
 
       - name: Build, sign and verify
         run: |
+          # The checkout keeps only a plain copy of the tag that triggered this run, without
+          # its message, so fetch the tag itself before reading the message.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           notes="$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")"
           tools/build_release.sh "$VERSION" \
             --build "$GITHUB_RUN_NUMBER" \

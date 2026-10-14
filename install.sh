@@ -197,6 +197,11 @@ install() {
     identifier="$(defaults read "$unpacked/$APP_NAME/Contents/Info" CFBundleIdentifier 2>/dev/null || true)"
     [ "$identifier" = "$BUNDLE_ID" ] || fail "the download isn't Match (found \"$identifier\")."
 
+    # Versions before 0.2.0 kept the saved sign-in where updates disturb it, so a user
+    # coming from one has to approve it once more. Nobody else is asked anything.
+    local previous=""
+    previous="$(defaults read "$destination/Contents/Info" CFBundleShortVersionString 2>/dev/null || true)"
+
     quit_app "$destination"
     say "Installing into $install_dir..."
     as_needed rm -rf "$destination"
@@ -207,10 +212,45 @@ install() {
 
     say "Match $version is installed."
     if [ "$open_after" -eq 1 ]; then
-        open "$destination"
-        say "Look for the Wi-Fi icon in the menu bar."
-        say "If you updated, click it and choose Unlock so Match can use your saved sign-in."
+        open_app "$destination"
     fi
+    say "Match lives in the menu bar: look for its Wi-Fi icon at the top right of the screen."
+    if is_before_vault "$previous"; then
+        say "Because you updated from Match $previous, click that icon and choose Unlock once,"
+        say "so Match can move your saved sign-in to where updates won't disturb it again."
+    fi
+}
+
+# True for a version older than 0.2.0, the first to keep the sign-in in the vault.
+is_before_vault() {
+    local major minor rest
+    case "$1" in
+        ''|*[!0-9.]*) return 1 ;;
+    esac
+    major="${1%%.*}"
+    rest="${1#*.}"
+    minor="${rest%%.*}"
+    [ "$rest" != "$1" ] || minor=0
+    [ "$major" -eq 0 ] && [ "${minor:-0}" -lt 2 ]
+}
+
+# Opens the app and makes sure it is running. Opening an app straight after its old
+# copy quit can be ignored by macOS, so it is tried again until the app is up.
+open_app() {
+    local app="$1" binary="$1/Contents/MacOS/Match" attempt waited
+    for attempt in 1 2 3; do
+        open "$app" 2>/dev/null || true
+        waited=0
+        while [ "$waited" -lt 6 ]; do
+            if pgrep -f "$binary" >/dev/null 2>&1; then
+                return 0
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+        [ "$attempt" -lt 3 ] && say "Match didn't start yet; trying again..."
+    done
+    say "Match didn't start by itself. Open it from your Applications folder."
 }
 
 # Asks the app to remove what only it can, giving up if it takes too long.
