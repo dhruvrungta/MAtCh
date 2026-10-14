@@ -14,7 +14,7 @@ final class OnboardingWindow {
         if window == nil {
             let view = OnboardingView(appState: appState) { [weak self] in self?.close() }
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-            window.title = "Welcome to Match"
+            window.title = "Welcome to MAtCh"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
             window.center()

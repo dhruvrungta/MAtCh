@@ -56,7 +56,7 @@ struct MenuContentView: View {
                 Button("Settings…") { showSettings(.general) }
                     .keyboardShortcut(",")
                 Spacer()
-                Button("Quit Match") { NSApplication.shared.terminate(nil) }
+                Button("Quit MAtCh") { NSApplication.shared.terminate(nil) }
                     .keyboardShortcut("q")
             }
         }
@@ -115,7 +115,7 @@ struct MenuContentView: View {
 
     private var unlockReminder: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Match was updated")
+            Text("MAtCh was updated")
                 .font(.subheadline.weight(.semibold))
             Text(StatusCopy.keychainApprovalAdvice)
                 .font(.caption)
@@ -130,7 +130,7 @@ struct MenuContentView: View {
 
     private func updateNotice(_ update: ReleaseInfo) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Match \(update.version) is available")
+            Text("MAtCh \(update.version) is available")
                 .font(.subheadline.weight(.semibold))
             if let notes = update.notes, !notes.isEmpty {
                 Text(notes)

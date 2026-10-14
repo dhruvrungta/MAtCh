@@ -57,9 +57,9 @@ enum KeychainError: Error, Equatable {
         case .malformedItem:
             return "the saved item could not be read"
         case .needsApproval:
-            return "macOS needs you to approve Match first. Click Unlock and choose Always Allow."
+            return "macOS needs you to approve MAtCh first. Click Unlock and choose Always Allow."
         case .vaultUnavailable(let reason):
-            return "Match's Keychain helper did not respond (\(reason)). Quit Match, open it again and retry."
+            return "MAtCh's Keychain helper did not respond (\(reason)). Quit MAtCh, open it again and retry."
         }
     }
 }

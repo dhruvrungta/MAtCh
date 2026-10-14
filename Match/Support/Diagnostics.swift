@@ -15,7 +15,7 @@ enum Diagnostics {
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
         return [
-            "Match \(version) (\(build))",
+            "MAtCh \(version) (\(build))",
             "macOS \(ProcessInfo.processInfo.operatingSystemVersionString)",
             "State: \(state)",
             "---",

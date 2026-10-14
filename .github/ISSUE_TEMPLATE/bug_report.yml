@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Match doesn't work as it should.
+description: Something in MAtCh doesn't work as it should.
 labels: [bug]
 body:
   - type: markdown
@@ -16,12 +16,12 @@ body:
   - type: textarea
     id: menu
     attributes:
-      label: What did Match's menu say?
+      label: What did MAtCh's menu say?
       description: The status at the top of the menu when it happened, for example "Couldn't sign in" or "Portal detected".
   - type: input
     id: match-version
     attributes:
-      label: Match version
+      label: MAtCh version
       description: Settings → About.
       placeholder: "0.2.2"
     validations:

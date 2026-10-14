@@ -35,10 +35,10 @@ struct OnboardingView: View {
 
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Welcome to Match", systemImage: "wifi")
+            Label("Welcome to MAtCh", systemImage: "wifi")
                 .font(.title2.weight(.semibold))
             Text("""
-                Match signs you in to the VIT hostel Wi-Fi so you never have to see the login page. \
+                MAtCh signs you in to the VIT hostel Wi-Fi so you never have to see the login page. \
                 It lives in the menu bar, notices when the network asks you to sign in, does it for you, \
                 and signs in again when your session runs out.
                 """)
@@ -68,10 +68,10 @@ struct OnboardingView: View {
             Text("Finishing touches")
                 .font(.title2.weight(.semibold))
 
-            Toggle("Open Match when I log in to my Mac", isOn: $launchAtLogin)
+            Toggle("Open MAtCh when I log in to my Mac", isOn: $launchAtLogin)
                 .disabled(!appState.launchAtLoginAvailable)
             if !appState.launchAtLoginAvailable {
-                Text("Move Match to your Applications folder to use this.")
+                Text("Move MAtCh to your Applications folder to use this.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -86,7 +86,7 @@ struct OnboardingView: View {
                     """)
                 Text("""
                     When you join the network, macOS may briefly show its own login window. \
-                    It closes by itself once Match has signed you in.
+                    It closes by itself once MAtCh has signed you in.
                     """)
             }
             .font(.callout)

@@ -40,11 +40,11 @@ struct NotificationContent: Equatable, Sendable {
         case .loginFailed(let reason, afterSessionExpiry: true):
             category = .reloginFailed
             title = "Session expired"
-            body = "Match couldn't sign back in. \(StatusCopy.advice(for: reason))"
+            body = "MAtCh couldn't sign back in. \(StatusCopy.advice(for: reason))"
         case .keychainApprovalNeeded:
             category = .loginFailed
-            title = "Match needs your approval"
-            body = "Open Match and click Unlock so it can use your saved sign-in."
+            title = "MAtCh needs your approval"
+            body = "Open MAtCh and click Unlock so it can use your saved sign-in."
         case .loggedOut(let session):
             category = .loggedOut
             title = "Logged out"

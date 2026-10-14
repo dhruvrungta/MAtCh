@@ -1,6 +1,6 @@
 # Security
 
-Match handles your VIT Wi-Fi password, so security problems matter. Thank you for taking the time to report one.
+MAtCh handles your VIT Wi-Fi password, so security problems matter. Thank you for taking the time to report one.
 
 ## Reporting a problem
 
@@ -10,7 +10,7 @@ Please include:
 
 - what the problem is and what someone could do with it;
 - the steps to reproduce it;
-- your Match version (Settings → About) and your macOS version.
+- your MAtCh version (Settings → About) and your macOS version.
 
 You can expect an acknowledgement within a few days. Fixes go out as a new release, and the report is credited in the changelog unless you'd rather not be named.
 
@@ -28,8 +28,8 @@ Anything that could expose or misuse a saved sign-in. For example:
 These are by design, and are described in the README:
 
 - The VIT login portal only accepts plain HTTP, so the password crosses the Wi-Fi unencrypted, exactly as it does when typed into the portal's page.
-- A hostile network that imitates the VIT portal convincingly could capture the password. Match signs in only when it is redirected to a known VIT portal address, which reduces the risk but cannot prove a network's identity.
-- Match is not notarized by Apple, so macOS warns about it on first launch.
+- A hostile network that imitates the VIT portal convincingly could capture the password. MAtCh signs in only when it is redirected to a known VIT portal address, which reduces the risk but cannot prove a network's identity.
+- MAtCh is not notarized by Apple, so macOS warns about it on first launch.
 
 ## Supported versions
 

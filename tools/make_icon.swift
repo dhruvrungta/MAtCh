@@ -127,7 +127,7 @@ func socialPreview() -> Data {
         ]
         NSAttributedString(string: text, attributes: attributes).draw(at: NSPoint(x: 560, y: y))
     }
-    write("Match", size: 128, weight: .bold, color: .white, at: 330)
+    write("MAtCh", size: 128, weight: .bold, color: .white, at: 330)
     write("Signs you in to the VIT hostel Wi-Fi", size: 40, weight: .regular, color: NSColor(white: 1, alpha: 0.88), at: 262)
     write("automatically.", size: 40, weight: .regular, color: NSColor(white: 1, alpha: 0.88), at: 212)
     write("Free  ·  macOS 14 or later  ·  Apple silicon and Intel", size: 26, weight: .medium, color: Palette.innerArc, at: 140)

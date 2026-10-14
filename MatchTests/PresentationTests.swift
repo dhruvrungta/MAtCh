@@ -182,7 +182,7 @@ private let allStates: [EngineState] = [
 
     @Test func diagnosticsHeaderNamesTheState() {
         let header = Diagnostics.header(state: .failed(.sessionLimit)).joined(separator: "\n")
-        #expect(header.contains("Match "))
+        #expect(header.contains("MAtCh "))
         #expect(header.contains("macOS "))
         #expect(header.contains("sessionLimit"))
     }

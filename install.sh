@@ -1,20 +1,20 @@
 #!/bin/bash
 #
-# Installs, updates or removes Match, the menu-bar app that signs you in to the VIT
+# Installs, updates or removes MAtCh, the menu-bar app that signs you in to the VIT
 # hostel Wi-Fi.
 #
 #   Install or update:
 #       curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash
 #
-#   Remove Match and everything it stored:
+#   Remove MAtCh and everything it stored:
 #       curl -fsSL https://dhruvrungta.github.io/match/install.sh | bash -s -- --uninstall
 #
 #   Options:
-#       --uninstall     remove Match, its saved sign-in, settings and history
+#       --uninstall     remove MAtCh, its saved sign-in, settings and history
 #       --yes           don't ask for confirmation when uninstalling
 #       --system        install into /Applications with sudo if it isn't writable
 #       --dir <folder>  install into this folder instead
-#       --no-open       don't open Match after installing
+#       --no-open       don't open MAtCh after installing
 #       --help          show this text
 #
 # It downloads one zip from this project's GitHub releases, checks its SHA-256
@@ -32,7 +32,7 @@ MINIMUM_MACOS=14
 # Where latest.json and this script are published. Forks can point this elsewhere.
 PAGES_URL="${MATCH_PAGES_URL:-https://${REPO_OWNER}.github.io/${REPO_NAME}}"
 # For this project's own tests only: allows a plain-HTTP local server to stand in for
-# GitHub, and a made-up bundle identifier to stand in for Match's, so that a test can
+# GitHub, and a made-up bundle identifier to stand in for MAtCh's, so that a test can
 # never touch a real installation. Never set this for a real install; it switches off
 # the download checks.
 INSECURE_TEST="${MATCH_INSECURE_TEST:-0}"
@@ -52,20 +52,20 @@ fail() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 usage() {
     cat <<USAGE
-Installs, updates or removes Match.
+Installs, updates or removes MAtCh.
 
   Install or update:
       curl -fsSL $PAGES_URL/install.sh | bash
 
-  Remove Match and everything it stored:
+  Remove MAtCh and everything it stored:
       curl -fsSL $PAGES_URL/install.sh | bash -s -- --uninstall
 
   Options:
-      --uninstall     remove Match, its saved sign-in, settings and history
+      --uninstall     remove MAtCh, its saved sign-in, settings and history
       --yes           don't ask for confirmation when uninstalling
       --system        install into /Applications with sudo if it isn't writable
       --dir <folder>  install into this folder instead
-      --no-open       don't open Match after installing
+      --no-open       don't open MAtCh after installing
       --help          show this text
 USAGE
 }
@@ -104,7 +104,7 @@ check_macos() {
         ''|*[!0-9]*) fail "could not read the macOS version ($version)." ;;
     esac
     if [ "$major" -lt "$MINIMUM_MACOS" ]; then
-        fail "Match needs macOS $MINIMUM_MACOS (Sonoma) or later. This Mac has macOS $version."
+        fail "MAtCh needs macOS $MINIMUM_MACOS (Sonoma) or later. This Mac has macOS $version."
     fi
 }
 
@@ -132,17 +132,17 @@ choose_install_dir() {
     else
         install_dir="$HOME/Applications"
         mkdir -p "$install_dir"
-        say "/Applications isn't writable, so Match will go into $install_dir."
+        say "/Applications isn't writable, so MAtCh will go into $install_dir."
         say "(Run again with --system to install into /Applications using sudo.)"
     fi
 }
 
-# Quits the copy of Match that lives at the given path, if it is running.
+# Quits the copy of MAtCh that lives at the given path, if it is running.
 quit_app() {
     local app="$1" binary waited=0
     binary="$app/Contents/MacOS/Match"
     pgrep -f "$binary" >/dev/null 2>&1 || return 0
-    say "Quitting Match..."
+    say "Quitting MAtCh..."
     osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
     while pgrep -f "$binary" >/dev/null 2>&1; do
         if [ "$waited" -ge 10 ]; then
@@ -179,7 +179,7 @@ install() {
         esac
     fi
 
-    say "Downloading Match $version..."
+    say "Downloading MAtCh $version..."
     curl -fL --proto "$protocols" --progress-bar "$url" -o "$archive" || fail "the download failed."
 
     actual="$(shasum -a 256 "$archive" | awk '{print $1}')"
@@ -210,14 +210,14 @@ install() {
     # that isn't notarized.
     as_needed xattr -dr com.apple.quarantine "$destination" 2>/dev/null || true
 
-    say "Match $version is installed."
+    say "MAtCh $version is installed."
     if [ "$open_after" -eq 1 ]; then
         open_app "$destination"
     fi
-    say "Match lives in the menu bar: look for its Wi-Fi icon at the top right of the screen."
+    say "MAtCh lives in the menu bar: look for its Wi-Fi icon at the top right of the screen."
     if is_before_vault "$previous"; then
-        say "Because you updated from Match $previous, click that icon and choose Unlock once,"
-        say "so Match can move your saved sign-in to where updates won't disturb it again."
+        say "Because you updated from MAtCh $previous, click that icon and choose Unlock once,"
+        say "so MAtCh can move your saved sign-in to where updates won't disturb it again."
     fi
 }
 
@@ -248,9 +248,9 @@ open_app() {
             sleep 1
             waited=$((waited + 1))
         done
-        [ "$attempt" -lt 3 ] && say "Match didn't start yet; trying again..."
+        [ "$attempt" -lt 3 ] && say "MAtCh didn't start yet; trying again..."
     done
-    say "Match didn't start by itself. Open it from your Applications folder."
+    say "MAtCh didn't start by itself. Open it from your Applications folder."
 }
 
 # Asks the app to remove what only it can, giving up if it takes too long.
@@ -275,7 +275,7 @@ confirm_uninstall() {
     local answer=""
     # When this script arrives through a pipe, the keyboard is on /dev/tty.
     if [ -r /dev/tty ]; then
-        printf 'Remove Match, its saved sign-in, settings and history? [y/N] ' > /dev/tty
+        printf 'Remove MAtCh, its saved sign-in, settings and history? [y/N] ' > /dev/tty
         read -r answer < /dev/tty || answer=""
     else
         fail "can't ask for confirmation here. Run again with --yes to uninstall."
@@ -299,7 +299,7 @@ uninstall() {
         [ -d "$app" ] || continue
         found=1
         quit_app "$app"
-        # Only Match itself can remove its Keychain item and its login item, so ask it to.
+        # Only MAtCh itself can remove its Keychain item and its login item, so ask it to.
         run_cleanup "$app"
         say "Removing $app..."
         if [ -w "$(dirname "$app")" ]; then
@@ -311,7 +311,7 @@ uninstall() {
         fi
     done
 
-    # In case Match couldn't remove its own Keychain item (macOS only lets the exact
+    # In case MAtCh couldn't remove its own Keychain item (macOS only lets the exact
     # version that saved it do so without asking).
     if security find-generic-password -s "$BUNDLE_ID.credentials" >/dev/null 2>&1; then
         security delete-generic-password -s "$BUNDLE_ID.credentials" >/dev/null 2>&1 || true
@@ -321,19 +321,19 @@ uninstall() {
         say "search for \"Match Wi-Fi sign-in\" and delete it."
     fi
 
-    # Match is sandboxed, so its settings and history live in its container.
+    # MAtCh is sandboxed, so its settings and history live in its container.
     if [ -d "$container" ]; then
         rm -rf "$container" 2>/dev/null || true
     fi
     if [ -d "$container" ]; then
-        say "macOS wouldn't let this script remove Match's data folder. To remove it, delete:"
+        say "macOS wouldn't let this script remove MAtCh's data folder. To remove it, delete:"
         say "  $container"
     fi
 
     if [ "$found" -eq 1 ]; then
-        say "Match has been removed."
+        say "MAtCh has been removed."
     else
-        say "Match wasn't found in /Applications or ~/Applications. Its saved data has been cleaned up."
+        say "MAtCh wasn't found in /Applications or ~/Applications. Its saved data has been cleaned up."
     fi
 }
 

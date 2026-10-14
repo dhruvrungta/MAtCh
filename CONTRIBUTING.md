@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for wanting to help with Match. Bug reports, fixes and improvements are all welcome.
+Thanks for wanting to help with MAtCh. Bug reports, fixes and improvements are all welcome.
 
 ## Reporting a bug
 
@@ -30,9 +30,9 @@ make lint          # needs ShellCheck: brew install shellcheck
 
 ## Ground rules
 
-These keep Match safe to trust with a password:
+These keep MAtCh safe to trust with a password:
 
-- **The password goes only to the VIT login portal**, and only after the network has redirected Match there. It must never be logged, written to a file, shown in a notification or sent anywhere else.
+- **The password goes only to the VIT login portal**, and only after the network has redirected MAtCh there. It must never be logged, written to a file, shown in a notification or sent anywhere else.
 - **Never automatically resend credentials the portal rejected.**
 - **No third-party dependencies.**
 - **Don't rebuild or re-sign the vault** (`Vault/MatchVault.xpc`) unless the vault itself must change. Every rebuild makes everyone who updates approve Keychain access again. The README's "The vault" section explains why.

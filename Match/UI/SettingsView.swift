@@ -41,13 +41,13 @@ private struct GeneralSettings: View {
                     get: { appState.autoLoginEnabled },
                     set: { appState.setAutoLogin($0) }
                 ))
-                Toggle("Open Match when I log in to my Mac", isOn: Binding(
+                Toggle("Open MAtCh when I log in to my Mac", isOn: Binding(
                     get: { appState.launchAtLogin },
                     set: { message = appState.setLaunchAtLogin($0) }
                 ))
                 .disabled(!appState.launchAtLoginAvailable)
                 if !appState.launchAtLoginAvailable {
-                    Text("Move Match to your Applications folder to use this.")
+                    Text("Move MAtCh to your Applications folder to use this.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -64,7 +64,7 @@ private struct GeneralSettings: View {
                         get: { appState.updateChecksEnabled },
                         set: { appState.setUpdateChecksEnabled($0) }
                     ))
-                    Text("Match only reads the latest version number. It sends nothing about you, and never downloads or installs anything by itself.")
+                    Text("MAtCh only reads the latest version number. It sends nothing about you, and never downloads or installs anything by itself.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -82,7 +82,7 @@ private struct GeneralSettings: View {
                     ))
                 }
                 if !notificationsAuthorized {
-                    Text("Notifications for Match are turned off in System Settings → Notifications.")
+                    Text("Notifications for MAtCh are turned off in System Settings → Notifications.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -110,7 +110,7 @@ private struct AccountSettings: View {
             }
 
             if appState.keychainApprovalNeeded {
-                Section("Match was updated") {
+                Section("MAtCh was updated") {
                     Text(StatusCopy.keychainApprovalAdvice)
                         .fixedSize(horizontal: false, vertical: true)
                     Button("Unlock") { appState.unlockSavedSignIn() }
@@ -158,7 +158,7 @@ private struct NetworkSettings: View {
                     get: { appState.showNetworkName },
                     set: { appState.setShowNetworkName($0) }
                 ))
-                Text("macOS only reveals the Wi-Fi name to apps with Location permission. Match uses it for the name and nothing else.")
+                Text("macOS only reveals the Wi-Fi name to apps with Location permission. MAtCh uses it for the name and nothing else.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -166,7 +166,7 @@ private struct NetworkSettings: View {
                     if let name = appState.networkName {
                         LabeledContent("Current network", value: name)
                     } else if appState.location.isDenied {
-                        Text("Location permission for Match is turned off in System Settings → Privacy & Security → Location Services.")
+                        Text("Location permission for MAtCh is turned off in System Settings → Privacy & Security → Location Services.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -175,7 +175,7 @@ private struct NetworkSettings: View {
             }
 
             Section("Known campus networks") {
-                Text("A Wi-Fi name containing any of these counts as a campus network. This only affects what Match shows; it never decides whether to sign in.")
+                Text("A Wi-Fi name containing any of these counts as a campus network. This only affects what MAtCh shows; it never decides whether to sign in.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -225,7 +225,7 @@ struct HistorySettings: View {
         Form {
             if sessions.records.isEmpty {
                 Section {
-                    Text("No sessions yet. A session is recorded each time Match has been connected for a minute or more.")
+                    Text("No sessions yet. A session is recorded each time MAtCh has been connected for a minute or more.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -236,7 +236,7 @@ struct HistorySettings: View {
                             HStack {
                                 Text(record.start.formatted(date: .abbreviated, time: .shortened))
                                 Spacer()
-                                Text(record.source == .portal ? "Reported by the portal" : "Measured by Match")
+                                Text(record.source == .portal ? "Reported by the portal" : "Measured by MAtCh")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -247,7 +247,7 @@ struct HistorySettings: View {
                     }
                 }
                 Section {
-                    Text("Figures measured by Match count everything this Mac sent and received over Wi-Fi during the session.")
+                    Text("Figures measured by MAtCh count everything this Mac sent and received over Wi-Fi during the session.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -273,7 +273,7 @@ private struct AdvancedSettings: View {
     var body: some View {
         Form {
             Section("Diagnostics") {
-                Text("Copies Match's recent activity log, with your registration number removed, so you can paste it into a bug report. Your password is never in the log.")
+                Text("Copies MAtCh's recent activity log, with your registration number removed, so you can paste it into a bug report. Your password is never in the log.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -306,7 +306,7 @@ private struct AdvancedSettings: View {
             }
         }
         .formStyle(.grouped)
-        .confirmationDialog("Reset Match?", isPresented: $confirmingReset) {
+        .confirmationDialog("Reset MAtCh?", isPresented: $confirmingReset) {
             Button("Reset everything", role: .destructive) { message = appState.resetEverything() }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -321,7 +321,7 @@ private struct AboutSettings: View {
             Image(nsImage: NSApplication.shared.applicationIconImage)
                 .resizable()
                 .frame(width: 72, height: 72)
-            Text("Match")
+            Text("MAtCh")
                 .font(.title2.weight(.semibold))
             Text("Version \(Self.version)")
                 .foregroundStyle(.secondary)

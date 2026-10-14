@@ -109,7 +109,7 @@ cat > "$plist" <<PLIST
     <key>version</key><string>$(xml_escape "$version")</string>
     <key>url</key><string>$(xml_escape "https://github.com/$owner/$repository/releases/download/v$version/$zip_name")</string>
     <key>sha256</key><string>$(xml_escape "$sha256")</string>
-    <key>notes</key><string>$(xml_escape "${notes:-Match $version}")</string>
+    <key>notes</key><string>$(xml_escape "${notes:-MAtCh $version}")</string>
 </dict>
 </plist>
 PLIST

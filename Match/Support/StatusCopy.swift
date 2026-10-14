@@ -12,20 +12,20 @@ enum StatusCopy {
         case .loggingIn: "Signing in…"
         case .connected(let since): connectedTitle(since: since, now: now)
         case .needsCredentials: "Sign-in details needed"
-        case .keychainLocked: "Match was updated"
+        case .keychainLocked: "MAtCh was updated"
         case .failed(let reason): title(for: reason)
         }
     }
 
     static func detail(for state: EngineState) -> String? {
         switch state {
-        case .noWiFi: "Match will sign in as soon as this Mac joins the hostel Wi-Fi."
+        case .noWiFi: "MAtCh will sign in as soon as this Mac joins the hostel Wi-Fi."
         case .checking, .loggingIn, .connected: nil
         case .online(let campus):
             campus
                 ? "You logged out, but the internet still works. Click Connect any time."
-                : "The internet works. Match signs in only on VIT Wi-Fi."
-        case .notCampus: "This network has its own login page. Match leaves it alone."
+                : "The internet works. MAtCh signs in only on VIT Wi-Fi."
+        case .notCampus: "This network has its own login page. MAtCh leaves it alone."
         case .portalDetected: "Click Connect to sign in."
         case .needsCredentials: "Add your registration number and Wi-Fi password."
         case .keychainLocked: keychainApprovalAdvice

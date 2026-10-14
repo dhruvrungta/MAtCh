@@ -1,0 +1,3 @@
+/* The name shown in Finder, Spotlight and the Dock. The app file stays Match.app. */
+"CFBundleDisplayName" = "MAtCh";
+"CFBundleName" = "MAtCh";

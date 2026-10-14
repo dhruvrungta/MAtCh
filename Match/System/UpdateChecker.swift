@@ -116,7 +116,7 @@ struct UpdateChecker: Sendable {
             return .failed("the update information could not be read")
         }
         guard let current = SemanticVersion(currentVersion) else {
-            return .failed("this copy of Match has no readable version")
+            return .failed("this copy of MAtCh has no readable version")
         }
         return latest > current ? .available(release) : .upToDate
     }

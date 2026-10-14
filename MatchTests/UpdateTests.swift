@@ -223,7 +223,7 @@ import Testing
         await appState.checkForUpdatesIfDue()
         #expect(appState.updateCheckMessage == nil)
         await appState.checkForUpdates(askedByUser: true)
-        #expect(appState.updateCheckMessage == "Match is up to date.")
+        #expect(appState.updateCheckMessage == "MAtCh is up to date.")
         #expect(appState.availableUpdate == nil)
     }
 }

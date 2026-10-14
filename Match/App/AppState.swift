@@ -162,7 +162,7 @@ final class AppState {
             updateCheckMessage = nil
         case .upToDate:
             availableUpdate = nil
-            updateCheckMessage = askedByUser ? "Match is up to date." : nil
+            updateCheckMessage = askedByUser ? "MAtCh is up to date." : nil
         case .failed(let reason):
             Log.ui.debug("update check failed: \(reason)")
             updateCheckMessage = askedByUser ? "Couldn't check for updates. Try again later." : nil

@@ -112,7 +112,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "build/release/Match-$VERSION.zip" \
             "build/release/Match-$VERSION.zip.sha256" \
-            --title "Match $VERSION" \
+            --title "MAtCh $VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md"
 
       - name: Prepare the Pages site
@@ -129,8 +129,8 @@ jobs:
           cat > site/index.html <<EOF
           <!doctype html>
           <meta charset="utf-8">
-          <title>Match</title>
-          <p>Match signs you in to the VIT hostel Wi-Fi automatically.</p>
+          <title>MAtCh</title>
+          <p>MAtCh signs you in to the VIT hostel Wi-Fi automatically.</p>
           <p>Install or update: <code>curl -fsSL https://$owner.github.io/$repository/install.sh | bash</code></p>
           <p><a href="https://github.com/$owner/$repository">Project page</a></p>
           EOF

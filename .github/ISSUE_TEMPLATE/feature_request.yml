@@ -1,11 +1,11 @@
 name: Idea
-description: Suggest something Match could do.
+description: Suggest something MAtCh could do.
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: What would you like Match to do?
+      label: What would you like MAtCh to do?
       description: What's the situation, and what would make it better?
     validations:
       required: true

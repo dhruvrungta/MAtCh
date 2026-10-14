@@ -111,7 +111,7 @@ check "doesn't ask a user of a recent version to unlock" lacks "$output" "Unlock
 echo "update from a version before the vault"
 defaults write "$apps/Match.app/Contents/Info" CFBundleShortVersionString 0.1.0
 output="$(run_installer --dir "$apps" --no-open)"
-check "asks the user to unlock once" contains "$output" "updated from Match 0.1.0"
+check "asks the user to unlock once" contains "$output" "updated from MAtCh 0.1.0"
 check "and installs the new version" test "$(installed_version)" = "1.1.0"
 
 echo "a download that doesn't match its checksum"
